@@ -17,7 +17,10 @@
       "Bash(unzip -o \"D:/OneDrive/Desktop/4ec10-main/豆瓣电影数据集12万+用户影评40万+爬虫程序\\(可做推荐系统\\).zip\" -d ./temp_data/)",
       "Bash(unzip -o \"./temp_data/豆瓣电影数据集12万+用户影评40万+爬虫程序\\(可做推荐系统\\)/豆瓣电影数据集+用户影评+爬虫程序.zip\" -d ./temp_data/extracted/)",
       "Bash(taskkill //F //PID 5724)",
-      "Bash(taskkill //F //PID 27212)"
+      "Bash(taskkill //F //PID 27212)",
+      "Bash(git rm *)",
+      "Bash(git remote *)",
+      "Bash(git push *)"
     ]
   }
 }
