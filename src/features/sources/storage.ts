@@ -4,7 +4,7 @@ export type { LocalVodSource } from '@/core/models'
 
 const STORAGE_KEY = 'sv_sources_v1'
 const SOURCES_VERSION_KEY = 'sv_sources_version'
-const CURRENT_SOURCES_VERSION = 8 // 54个片源
+const CURRENT_SOURCES_VERSION = 9 // 强制同步54个片源
 
 // CORS proxies to try (in order) when fetching from browser
 const CORS_PROXIES = [
