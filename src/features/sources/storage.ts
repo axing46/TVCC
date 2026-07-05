@@ -13,6 +13,7 @@ const CORS_PROXIES = [
 // Default sources — auto-imported on first visit
 const DEFAULT_SOURCES: LocalVodSource[] = [
   { key: 'ikunzy', name: 'ikun资源', apiUrl: 'https://ikunzyapi.com/api.php/provide/vod', detailUrl: 'https://ikunzyapi.com/api.php/provide/vod', enabled: true },
+  { key: 'iqiyizy', name: '爱奇艺资源', apiUrl: 'https://iqiyizyapi.com/api.php/provide/vod', detailUrl: 'https://iqiyizyapi.com/api.php/provide/vod', enabled: true },
   { key: 'ffzy', name: '非凡资源', apiUrl: 'https://cj.ffzyapi.com/api.php/provide/vod', detailUrl: 'https://cj.ffzyapi.com/api.php/provide/vod', enabled: true },
   { key: 'hongniu', name: '红牛资源', apiUrl: 'https://www.hongniuzy2.com/api.php/provide/vod', detailUrl: 'https://www.hongniuzy2.com/api.php/provide/vod', enabled: true },
   { key: 'lzcaiji', name: '量子采集', apiUrl: 'https://cj.lzcaiji.com/api.php/provide/vod', detailUrl: 'https://cj.lzcaiji.com/api.php/provide/vod', enabled: true },
