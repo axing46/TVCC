@@ -221,9 +221,10 @@ export function SearchPage() {
     setActiveCat(currentCat)
   }, [currentCat])
 
-  // Favorites only toggle
+  // Favorites only toggle - default to true
   const [favoritesOnly, setFavoritesOnly] = useState(() => {
-    return localStorage.getItem('tvcc_search_favorites_only') === 'true'
+    const saved = localStorage.getItem('tvcc_search_favorites_only')
+    return saved === null ? true : saved === 'true'
   })
 
   const toggleFavoritesOnly = () => {
