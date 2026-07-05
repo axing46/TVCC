@@ -1,7 +1,8 @@
 /**
- * Rewrite image URLs to bypass CORS / anti-leech restrictions.
- * On HTTPS deployments (Vercel), HTTP images are blocked as Mixed Content,
- * so we route them through /api/proxy.
+ * Route ALL source images through /api/proxy to:
+ * 1. Fix Mixed Content (HTTP images on HTTPS page)
+ * 2. Bypass hotlink protection (Referer checks)
+ * 3. Handle CORS issues
  */
 
 const IS_HTTPS = typeof window !== 'undefined' && window.location.protocol === 'https:'
@@ -9,13 +10,14 @@ const IS_HTTPS = typeof window !== 'undefined' && window.location.protocol === '
 export function proxyImageUrl(url: string | undefined | null): string {
   if (!url) return ''
 
-  // On HTTPS: route HTTP images through proxy to avoid Mixed Content
-  if (IS_HTTPS && url.startsWith('http://')) {
-    return `/api/proxy?url=${encodeURIComponent(url)}`
-  }
+  // Skip already-proxied URLs
+  if (url.startsWith('/api/proxy')) return url
 
-  // Douban images often block cross-origin requests — proxy them
-  if (url.includes('doubanio.com') || url.includes('douban.com')) {
+  // Skip data URIs
+  if (url.startsWith('data:')) return url
+
+  // Always proxy external images through our backend
+  if (url.startsWith('http://') || url.startsWith('https://')) {
     return `/api/proxy?url=${encodeURIComponent(url)}`
   }
 
