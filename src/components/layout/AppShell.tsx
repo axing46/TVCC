@@ -21,7 +21,7 @@ export function AppShell({ children, hideNav }: { children: ReactNode; hideNav?:
   return (
     <div className="min-h-screen bg-bg">
       {/* ─── Navbar — KVideo-style floating glass pill ─── */}
-      <nav className="sticky top-0 z-[2000] pt-3 pb-1" style={{ transform: 'translate3d(0,0,0)', willChange: 'transform' }}>
+      <nav className="sticky top-0 z-[2000] pt-2 sm:pt-3 pb-1" style={{ transform: 'translate3d(0,0,0)', willChange: 'transform' }}>
         <div className="max-w-7xl mx-auto px-3 sm:px-6">
           <div className="glass-card px-3 sm:px-5 py-2 flex items-center justify-between gap-2">
             {/* Logo */}
@@ -35,7 +35,7 @@ export function AppShell({ children, hideNav }: { children: ReactNode; hideNav?:
               </div>
             </NavLink>
 
-            {/* Desktop nav links */}
+            {/* Desktop nav links (md: tablet, lg: desktop) */}
             <div className="hidden md:flex items-center gap-1">
               {NAV.map(({ to, icon: Icon, label }) => (
                 <NavLink
@@ -51,18 +51,43 @@ export function AppShell({ children, hideNav }: { children: ReactNode; hideNav?:
                   }
                 >
                   <Icon size={14} strokeWidth={1.5} />
-                  {label}
+                  <span className="hidden lg:inline">{label}</span>
+                  <span className="lg:hidden">{label.slice(0, 2)}</span>
                 </NavLink>
               ))}
             </div>
 
+            {/* Tablet nav (show more items than phone) */}
+            <div className="hidden sm:flex md:hidden items-center gap-0.5">
+              {NAV.slice(0, 4).map(({ to, icon: Icon, label }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={to === '/'}
+                  className={({ isActive }) =>
+                    `icon-btn w-8 h-8 ${isActive ? '!text-accent !bg-accent/10 !border-accent/25' : ''}`
+                  }
+                  title={label}
+                >
+                  <Icon size={14} strokeWidth={1.5} />
+                </NavLink>
+              ))}
+              <button
+                onClick={() => setDrawerOpen(true)}
+                className="icon-btn w-8 h-8"
+                title="更多"
+              >
+                <Menu size={14} strokeWidth={1.5} />
+              </button>
+            </div>
+
             {/* Search + mobile nav */}
             <div className="flex items-center gap-2">
-              <div className="w-[200px] sm:w-[280px] hidden sm:block">
+              <div className="w-[180px] sm:w-[240px] lg:w-[280px] hidden sm:block">
                 <SearchBar compact />
               </div>
-              {/* Mobile nav icons */}
-              <div className="flex md:hidden items-center gap-0.5">
+              {/* Mobile nav icons (phone only) */}
+              <div className="flex sm:hidden items-center gap-0.5">
                 {NAV.filter(n => n.to === '/' || n.to === '/search' || n.to === '/favorites').map(({ to, icon: Icon, label }) => (
                   <NavLink
                     key={to}
@@ -76,7 +101,6 @@ export function AppShell({ children, hideNav }: { children: ReactNode; hideNav?:
                     <Icon size={14} strokeWidth={1.5} />
                   </NavLink>
                 ))}
-                {/* Menu button for more options */}
                 <button
                   onClick={() => setDrawerOpen(true)}
                   className="icon-btn w-8 h-8"
@@ -90,7 +114,7 @@ export function AppShell({ children, hideNav }: { children: ReactNode; hideNav?:
         </div>
       </nav>
 
-      {/* Mobile search bar below navbar */}
+      {/* Mobile search bar below navbar (phone only) */}
       <div className="sm:hidden px-3 pb-1 sticky top-[52px] z-[1999]">
         <SearchBar compact />
       </div>
