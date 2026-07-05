@@ -24,7 +24,8 @@
       "Bash(git config *)",
       "Bash(git -c http.proxy= -c https.proxy= push)",
       "Bash(git commit *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(powershell -Command \"Get-ItemProperty 'HKCU:\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Internet Settings' | Select-Object ProxyEnable, ProxyServer | Format-List\" 2>&1)"
     ]
   }
 }

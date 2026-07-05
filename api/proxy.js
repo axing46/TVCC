@@ -101,9 +101,13 @@ export default async function handler(req, res) {
     }
 
     const buffer = Buffer.from(await upstream.arrayBuffer())
+
+    // Pass through content type, cache, and content-length
     res.setHeader('Content-Type', contentType || 'application/octet-stream')
-    res.setHeader('Cache-Control', 'public, max-age=3600')
-    return res.send(buffer)
+    res.setHeader('Content-Length', buffer.length)
+    res.setHeader('Cache-Control', 'public, max-age=86400')
+
+    return res.status(200).end(buffer)
   } catch (err) {
     console.error(`[proxy] ${err.name}: ${err.message} ← ${targetUrl}`)
     return res.status(502).send(`Proxy error: ${err.message}`)
