@@ -4,53 +4,104 @@ export type { LocalVodSource } from '@/core/models'
 
 const STORAGE_KEY = 'sv_sources_v1'
 
+// Remote sources config URL
+const REMOTE_SOURCES_URL = 'https://raw.githubusercontent.com/WEP-56/TTTTV-config/main/sources.json'
+
 // CORS proxies to try (in order) when fetching from browser
 const CORS_PROXIES = [
   (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
   (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
 ]
 
-// Default sources — auto-imported on first visit
-const DEFAULT_SOURCES: LocalVodSource[] = [
-  // ── 主力资源 ──
-  { key: 'ikunzy', name: 'ikun资源', apiUrl: 'https://ikunzyapi.com/api.php/provide/vod', detailUrl: 'https://ikunzyapi.com/api.php/provide/vod', enabled: true },
-  { key: 'iqiyizy', name: '爱奇艺资源', apiUrl: 'https://iqiyizyapi.com/api.php/provide/vod', detailUrl: 'https://iqiyizyapi.com/api.php/provide/vod', enabled: true },
-  { key: 'ffzy', name: '非凡资源', apiUrl: 'https://cj.ffzyapi.com/api.php/provide/vod', detailUrl: 'https://cj.ffzyapi.com/api.php/provide/vod', enabled: true },
-  { key: 'hongniu', name: '红牛资源', apiUrl: 'https://www.hongniuzy2.com/api.php/provide/vod', detailUrl: 'https://www.hongniuzy2.com/api.php/provide/vod', enabled: true },
-  { key: 'lzcaiji', name: '量子采集', apiUrl: 'https://cj.lzcaiji.com/api.php/provide/vod', detailUrl: 'https://cj.lzcaiji.com/api.php/provide/vod', enabled: true },
-  { key: 'sdzy', name: '闪电资源', apiUrl: 'https://sdzyapi.com/api.php/provide/vod', detailUrl: 'https://sdzyapi.com/api.php/provide/vod', enabled: true },
-  { key: '360zy', name: '360资源', apiUrl: 'https://360zy.com/api.php/provide/vod', detailUrl: 'https://360zy.com/api.php/provide/vod', enabled: true },
-  { key: 'wujin', name: '无尽资源', apiUrl: 'https://api.wujinapi.me/api.php/provide/vod', detailUrl: 'https://api.wujinapi.me/api.php/provide/vod', enabled: true },
-  { key: 'maoyan', name: '猫眼资源', apiUrl: 'https://api.maoyanapi.top/api.php/provide/vod', detailUrl: 'https://api.maoyanapi.top/api.php/provide/vod', enabled: true },
-  // ── 补充资源 ──
-  { key: 'heimuer', name: '黑木耳资源', apiUrl: 'https://json.heimuer.xyz/api.php/provide/vod', detailUrl: 'https://json.heimuer.xyz/api.php/provide/vod', enabled: true },
-  { key: 'hwzy', name: '红牛VIP', apiUrl: 'https://www.hongniuzy2.com/api.php/provide/vod', detailUrl: 'https://www.hongniuzy2.com/api.php/provide/vod', enabled: true },
-  { key: 'dbzy', name: '豆瓣资源', apiUrl: 'https://dbzyapi.com/api.php/provide/vod', detailUrl: 'https://dbzyapi.com/api.php/provide/vod', enabled: true },
-  { key: 'bfzy', name: '暴风资源', apiUrl: 'https://bfzyapi.com/api.php/provide/vod', detailUrl: 'https://bfzyapi.com/api.php/provide/vod', enabled: true },
-  { key: 'tpzy', name: '淘片资源', apiUrl: 'https://taopianapi.com/home/cjapi/vod/mc/we/page', detailUrl: 'https://taopianapi.com/home/cjapi/vod/mc/we/page', enabled: true },
-  { key: 'gszy', name: '光速资源', apiUrl: 'https://api.guangsuapi.com/api.php/provide/vod', detailUrl: 'https://api.guangsuapi.com/api.php/provide/vod', enabled: true },
-  { key: 'tkzy', name: '天空资源', apiUrl: 'https://api.tiankongapi.com/api.php/provide/vod', detailUrl: 'https://api.tiankongapi.com/api.php/provide/vod', enabled: true },
-  { key: 'jszy', name: '极速资源', apiUrl: 'https://jszyapi.com/api.php/provide/vod', detailUrl: 'https://jszyapi.com/api.php/provide/vod', enabled: true },
-  { key: 'lydzy', name: '量子资源', apiUrl: 'https://cj.lziapi.com/api.php/provide/vod', detailUrl: 'https://cj.lziapi.com/api.php/provide/vod', enabled: true },
-  { key: 'wzzy', name: '无尽ME', apiUrl: 'https://www.wujinapi.me/api.php/provide/vod', detailUrl: 'https://www.wujinapi.me/api.php/provide/vod', enabled: true },
-  { key: 'bfzy2', name: '暴风极速', apiUrl: 'https://bfzyapi.com/api.php/provide/vod', detailUrl: 'https://bfzyapi.com/api.php/provide/vod', enabled: true },
-  { key: 'moduzy', name: '魔都资源', apiUrl: 'https://moduzyapi.com/api.php/provide/vod', detailUrl: 'https://moduzyapi.com/api.php/provide/vod', enabled: true },
-  { key: 'kkzy', name: '快快资源', apiUrl: 'https://api.kkzyapi.com/api.php/provide/vod', detailUrl: 'https://api.kkzyapi.com/api.php/provide/vod', enabled: true },
-  { key: 'hnzy', name: '红牛极速', apiUrl: 'https://hnzyapi.com/api.php/provide/vod', detailUrl: 'https://hnzyapi.com/api.php/provide/vod', enabled: true },
-]
+// Fetch remote sources config
+async function fetchRemoteSources(): Promise<LocalVodSource[]> {
+  try {
+    // Try direct fetch first
+    let text: string
+    try {
+      const res = await fetch(REMOTE_SOURCES_URL)
+      if (res.ok) {
+        text = await res.text()
+      } else {
+        throw new Error('Direct fetch failed')
+      }
+    } catch {
+      // Try CORS proxies
+      for (const proxy of CORS_PROXIES) {
+        try {
+          const res = await fetch(proxy(REMOTE_SOURCES_URL))
+          if (res.ok) {
+            text = await res.text()
+            break
+          }
+        } catch {
+          continue
+        }
+      }
+      throw new Error('All fetch attempts failed')
+    }
+
+    const data = JSON.parse(text!)
+
+    // Parse different formats
+    let remoteList: { key: string; name: string; api: string; detail?: string }[] = []
+
+    if (Array.isArray(data)) {
+      remoteList = data.map((item: Record<string, unknown>) => ({
+        key: String(item['key'] ?? item['name'] ?? ''),
+        name: String(item['name'] ?? item['key'] ?? ''),
+        api: String(item['api'] ?? item['apiUrl'] ?? ''),
+        detail: String(item['detail'] ?? item['detailUrl'] ?? item['api'] ?? item['apiUrl'] ?? ''),
+      }))
+    } else if (data['sources'] && Array.isArray(data['sources'])) {
+      remoteList = (data['sources'] as Record<string, unknown>[]).map((item) => ({
+        key: String(item['key'] ?? item['name'] ?? ''),
+        name: String(item['name'] ?? item['key'] ?? ''),
+        api: String(item['api'] ?? item['apiUrl'] ?? ''),
+        detail: String(item['detail'] ?? item['detailUrl'] ?? item['api'] ?? item['apiUrl'] ?? ''),
+      }))
+    } else if (data['api_site']) {
+      const apiSite = data['api_site'] as Record<string, Record<string, unknown>>
+      remoteList = Object.entries(apiSite).map(([key, value]) => ({
+        key,
+        name: String(value['name'] ?? key),
+        api: String(value['api'] ?? ''),
+        detail: String(value['detail'] ?? value['api'] ?? ''),
+      }))
+    }
+
+    return remoteList
+      .filter(s => s.key && s.api)
+      .map(s => ({
+        key: s.key,
+        name: s.name,
+        apiUrl: s.api,
+        detailUrl: s.detail || s.api,
+        enabled: true,
+      }))
+  } catch {
+    console.warn('Failed to fetch remote sources, using empty defaults')
+    return []
+  }
+}
 
 export async function loadAllSources(): Promise<LocalVodSource[]> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) {
-      // First visit — save and return defaults
-      saveSources(DEFAULT_SOURCES)
-      return DEFAULT_SOURCES
+      // First visit — fetch remote sources and save
+      const remoteSources = await fetchRemoteSources()
+      if (remoteSources.length > 0) {
+        saveSources(remoteSources)
+        return remoteSources
+      }
+      // Fallback to empty if remote fetch fails
+      return []
     }
     const list = JSON.parse(raw) as unknown[]
     return list.map(localVodSourceFromStorage)
   } catch {
-    return DEFAULT_SOURCES
+    return []
   }
 }
 
