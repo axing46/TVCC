@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Plus, Download, ClipboardPaste, Trash2, ChevronUp, ChevronDown, Search, AlertTriangle } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Plus, Download, ClipboardPaste, Trash2, ChevronUp, ChevronDown, Search, AlertTriangle, FileUp } from 'lucide-react'
 import { useSources } from './hooks'
 import type { LocalVodSource } from '@/core/models'
 import { getSourceDisplayName } from '@/utils/source-names'
@@ -10,12 +10,13 @@ const DEFAULT_REMOTE_URL = 'https://raw.githubusercontent.com/WEP-56/TTTTV-confi
 export function SourcesPage() {
   const { sources, isLoading, toggle, remove, clearAll, importSources, importSourcesFromJson, addSource } = useSources()
   const [showClearConfirm, setShowClearConfirm] = useState(false)
-  const [importMode, setImportMode] = useState<'url' | 'paste' | 'add'>('url')
+  const [importMode, setImportMode] = useState<'url' | 'paste' | 'file' | 'add'>('url')
   const [importUrl, setImportUrl] = useState(DEFAULT_REMOTE_URL)
   const [pasteText, setPasteText] = useState('')
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<string | null>(null)
   const [filter, setFilter] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Add form state
   const [addKey, setAddKey] = useState('')
@@ -54,6 +55,26 @@ export function SourcesPage() {
     } finally { setImporting(false) }
   }
 
+  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setImporting(true); setImportResult(null)
+    try {
+      const text = await file.text()
+      const result = await importSourcesFromJson(text)
+      const parts: string[] = []
+      if (result.added.length) parts.push(`已添加 ${result.added.length} 个`)
+      if (result.skipped.length) parts.push(`跳过 ${result.skipped.length} 个`)
+      setImportResult(parts.join(' · ') || '无有效片源')
+    } catch (e) {
+      setImportResult(`导入失败: ${(e as Error).message}`)
+    } finally {
+      setImporting(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   const handleAdd = async () => {
     setImporting(true); setImportResult(null)
     try {
@@ -85,15 +106,15 @@ export function SourcesPage() {
 
       {/* ─── Import section ─── */}
       <div className="glass-card p-4 mb-4">
-        <div className="flex items-center gap-3 mb-4">
-          {(['url', 'paste', 'add'] as const).map((mode) => (
+        <div className="flex items-center gap-2 sm:gap-3 mb-4 overflow-x-auto scrollbar-none">
+          {(['url', 'paste', 'file', 'add'] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => { setImportMode(mode); setImportResult(null) }}
-              className={`text-[12px] font-semibold pb-1.5 border-b-2 transition-all duration-200
+              className={`text-[11px] sm:text-[12px] font-semibold pb-1.5 border-b-2 whitespace-nowrap transition-all duration-200
                 ${importMode === mode ? 'border-accent text-accent' : 'border-transparent text-muted hover:text-ink-2'}`}
             >
-              {{ url: 'URL 导入', paste: '粘贴 JSON', add: '手动添加' }[mode]}
+              {{ url: 'URL 导入', paste: '粘贴 JSON', file: '文件导入', add: '手动添加' }[mode]}
             </button>
           ))}
         </div>
@@ -118,6 +139,28 @@ export function SourcesPage() {
               hover:bg-accent-hover transition-all duration-200 disabled:opacity-50">
               <ClipboardPaste size={14} /> {importing ? '导入中' : '导入 JSON'}
             </button>
+          </div>
+        ) : importMode === 'file' ? (
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleFileImport}
+              className="hidden"
+            />
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center cursor-pointer
+                hover:border-accent/50 hover:bg-accent/5 transition-all duration-200"
+            >
+              <FileUp size={32} className="mx-auto mb-3 text-muted" />
+              <p className="text-[13px] text-ink font-medium mb-1">点击选择 JSON 文件</p>
+              <p className="text-[11px] text-muted">支持 .json 格式的片源配置文件</p>
+            </div>
+            {importing && (
+              <p className="mt-2 text-[12px] text-muted text-center">导入中...</p>
+            )}
           </div>
         ) : (
           <div className="space-y-3">

@@ -9,13 +9,15 @@ interface VodCardProps {
   item: VodItem
   /** 'poster' = vertical card, 'landscape' = YouTube-style horizontal card */
   layout?: 'poster' | 'landscape'
+  /** Mobile compact mode - smaller thumbnail */
+  compact?: boolean
 }
 
-export function VodCard({ item, layout = 'landscape' }: VodCardProps) {
+export function VodCard({ item, layout = 'landscape', compact = false }: VodCardProps) {
   const [imgError, setImgError] = useState(false)
 
   if (layout === 'landscape') {
-    // YouTube-style horizontal card
+    // YouTube-style card - responsive: mobile compact, tablet/desktop full
     return (
       <Link
         to={`/detail/${encodeURIComponent(item.sourceKey)}/${encodeURIComponent(item.vodId)}`}
@@ -23,9 +25,11 @@ export function VodCard({ item, layout = 'landscape' }: VodCardProps) {
         onClick={() => sessionStorage.setItem('sv_search_scroll', String(window.scrollY))}
         className="group cursor-pointer hover:-translate-y-0.5 transition-transform duration-200 ease-out block"
       >
-        <div className="flex flex-col gap-2">
+        {/* Mobile: horizontal compact card (YouTube mobile style) */}
+        <div className="flex gap-2.5 sm:flex-col sm:gap-2">
           {/* Thumbnail */}
-          <div className="relative bg-hair rounded-xl overflow-hidden aspect-video">
+          <div className={`relative bg-hair rounded-lg sm:rounded-xl overflow-hidden flex-shrink-0
+            ${compact ? 'w-[140px] h-[80px]' : 'w-[140px] h-[80px] sm:w-full sm:h-auto sm:aspect-video'}`}>
             {item.vodPic && !imgError ? (
               <img
                 src={proxyImageUrl(item.vodPic)}
@@ -37,16 +41,16 @@ export function VodCard({ item, layout = 'landscape' }: VodCardProps) {
               />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-muted/40">
-                <Film size={32} strokeWidth={1} />
-                <span className="text-[10px] truncate max-w-[90%]">{item.vodName}</span>
+                <Film size={compact ? 20 : 24} strokeWidth={1} />
+                <span className="text-[8px] sm:text-[10px] truncate max-w-[90%]">{item.vodName}</span>
               </div>
             )}
 
             {/* Badges */}
-            <div className="absolute top-1 left-1 right-1 z-10 flex items-center justify-between gap-1">
-              <div className="flex items-center gap-1 min-w-0">
+            <div className="absolute top-0.5 left-0.5 right-0.5 sm:top-1 sm:left-1 sm:right-1 z-10 flex items-center justify-between gap-0.5">
+              <div className="flex items-center gap-0.5 min-w-0">
                 {item.sourceKey && (
-                  <span className="pill max-w-[50%] truncate !bg-accent !text-white !border-accent text-[8px] px-1.5 py-0.5">
+                  <span className="pill max-w-[50%] truncate !bg-accent !text-white !border-accent text-[7px] sm:text-[8px] px-1 py-0.5 sm:px-1.5">
                     {getSourceDisplayName(item.sourceKey)}
                   </span>
                 )}
@@ -61,20 +65,26 @@ export function VodCard({ item, layout = 'landscape' }: VodCardProps) {
 
             {/* Hover overlay */}
             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-              <Play size={28} className="text-white/90" />
+              <Play size={compact ? 20 : 24} className="text-white/90" />
             </div>
           </div>
 
           {/* Info */}
-          <div className="px-0.5">
-            <h4 className="font-medium text-[12px] text-ink line-clamp-2 mb-0.5 group-hover:text-accent transition-colors">
+          <div className="flex-1 min-w-0 sm:px-0.5">
+            <h4 className="font-medium text-[11px] sm:text-[12px] text-ink line-clamp-2 mb-0.5 group-hover:text-accent transition-colors">
               {item.vodName}
             </h4>
-            <div className="flex items-center gap-1.5 text-[10px] text-muted">
+            <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-muted">
+              {item.sourceKey && (
+                <span className="sm:hidden truncate">{getSourceDisplayName(item.sourceKey)}</span>
+              )}
               {item.vodYear && <span>{item.vodYear}</span>}
-              {item.typeName && <span>· {item.typeName}</span>}
-              {item.vodLang && <span>· {item.vodLang}</span>}
+              {item.typeName && <span className="hidden sm:inline">· {item.typeName}</span>}
+              {item.vodLang && <span className="hidden sm:inline">· {item.vodLang}</span>}
             </div>
+            {item.vodActor && (
+              <p className="hidden sm:block text-[9px] text-muted/70 mt-0.5 truncate">{item.vodActor}</p>
+            )}
           </div>
         </div>
       </Link>
