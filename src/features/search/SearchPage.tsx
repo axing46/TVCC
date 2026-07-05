@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Search, Trash2, Film, Tv, Laugh, Clapperboard } from 'lucide-react'
+import { Search, Trash2, Film, Tv, Laugh, Clapperboard, Loader2 } from 'lucide-react'
 import { useSearch } from './hooks'
 import { useSearchStore } from '@/stores/searchStore'
+import { searchSuggestions } from './api'
 import { VodGrid } from '@/components/vod/VodGrid'
 import { EmptyState, ErrorState } from '@/components/ui/Status'
 import type { VodItem } from '@/core/models'
@@ -17,6 +18,58 @@ const QUICK_CATEGORIES = [
   { key: 'variety', label: '综艺', icon: Laugh, color: 'from-pink-500/20 to-pink-600/10' },
   { key: 'anime', label: '动漫', icon: Clapperboard, color: 'from-purple-500/20 to-purple-600/10' },
 ]
+
+// 搜索建议组件
+function SearchSuggestions({ keyword, onSelect, visible }: {
+  keyword: string
+  onSelect: (q: string) => void
+  visible: boolean
+}) {
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [loading, setLoading] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout>>()
+
+  useEffect(() => {
+    if (!keyword || keyword.length < 1 || !visible) {
+      setSuggestions([])
+      return
+    }
+
+    setLoading(true)
+    clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(async () => {
+      const results = await searchSuggestions(keyword)
+      setSuggestions(results)
+      setLoading(false)
+    }, 150)
+
+    return () => clearTimeout(timerRef.current)
+  }, [keyword, visible])
+
+  if (!visible || (!loading && suggestions.length === 0)) return null
+
+  return (
+    <div className="absolute top-full left-0 right-0 mt-2 glass-card p-2 z-50 shadow-xl">
+      {loading ? (
+        <div className="flex items-center justify-center gap-2 py-3 text-[12px] text-muted">
+          <Loader2 size={14} className="animate-spin" />
+          搜索建议中...
+        </div>
+      ) : (
+        suggestions.map((s, i) => (
+          <button
+            key={i}
+            onClick={() => onSelect(s)}
+            className="w-full text-left px-3 py-2 rounded-btn text-[13px] text-ink
+              hover:bg-white/[0.06] hover:text-accent transition-all duration-120"
+          >
+            {s}
+          </button>
+        ))
+      )}
+    </div>
+  )
+}
 
 // 热搜词组件
 function HotSearches({ onSelect }: { onSelect: (q: string) => void }) {
@@ -243,31 +296,41 @@ export function SearchPage() {
     if (q) setParams({ q, cat: cat === 'all' ? undefined : cat } as Record<string, string>)
   }
 
+  // Streaming state
+  const { isStreaming } = useSearch(queryParam || '')
+
   return (
     <div className="max-w-7xl mx-auto">
 
       {/* Search form (visible when no query in URL) */}
       {!queryParam && (
         <>
-          <form onSubmit={handleSearch} className="glass-input flex items-center mb-5">
-            <Search size={18} className="text-muted ml-4" strokeWidth={1.5} />
-            <input
-              type="text"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              placeholder="输入关键词搜索..."
-              className="flex-1 bg-transparent border-none outline-none text-[15px] text-ink
-                placeholder:text-muted px-4 py-4"
-              autoFocus
+          <div className="relative mb-5">
+            <form onSubmit={handleSearch} className="glass-input flex items-center">
+              <Search size={18} className="text-muted ml-4" strokeWidth={1.5} />
+              <input
+                type="text"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                placeholder="输入关键词搜索..."
+                className="flex-1 bg-transparent border-none outline-none text-[15px] text-ink
+                  placeholder:text-muted px-4 py-4"
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 mr-2 rounded-lg bg-accent/15 text-accent text-[13px] font-medium
+                  hover:bg-accent/25 transition-all duration-200"
+              >
+                搜索
+              </button>
+            </form>
+            <SearchSuggestions
+              keyword={keyword}
+              onSelect={handleSelectSearch}
+              visible={keyword.length > 0}
             />
-            <button
-              type="submit"
-              className="px-4 py-2 mr-2 rounded-lg bg-accent/15 text-accent text-[13px] font-medium
-                hover:bg-accent/25 transition-all duration-200"
-            >
-              搜索
-            </button>
-          </form>
+          </div>
           <HotSearches onSelect={handleSelectSearch} />
           <SearchHistory onSelect={handleSelectSearch} />
           <QuickCategories onSelect={handleSelectSearch} />
@@ -356,15 +419,24 @@ export function SearchPage() {
       {/* Results */}
       {!queryParam ? (
         <EmptyState message="输入关键词开始搜索" />
-      ) : isError ? (
+      ) : isError && !data ? (
         <ErrorState
           message={(error as Error)?.message ?? '搜索失败'}
           onRetry={() => refetch()}
         />
-      ) : isLoading ? (
+      ) : isLoading && !data ? (
         <VodGrid items={[]} loading />
       ) : (
-        <VodGrid items={finalItems} />
+        <>
+          {/* Streaming indicator */}
+          {isStreaming && finalItems.length > 0 && (
+            <div className="flex items-center justify-center gap-2 mb-4 py-2 text-[12px] text-muted">
+              <Loader2 size={14} className="animate-spin" />
+              正在加载更多结果...
+            </div>
+          )}
+          <VodGrid items={finalItems} />
+        </>
       )}
 
       {/* Source stats */}

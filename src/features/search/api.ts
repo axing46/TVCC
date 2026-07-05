@@ -2,6 +2,66 @@ import { fetchSourceApi } from '@/core/network/client'
 import type { VodItem } from '@/core/models'
 import { loadAllSources, type LocalVodSource } from '@/features/sources/storage'
 
+// ─── Source performance tracking ─────────────────────────────
+
+const SOURCE_PERF_KEY = 'tvcc_source_performance'
+
+interface SourcePerformance {
+  key: string
+  avgResponseTime: number
+  successRate: number
+  lastUsed: number
+}
+
+function loadSourcePerformance(): Map<string, SourcePerformance> {
+  try {
+    const raw = localStorage.getItem(SOURCE_PERF_KEY)
+    if (!raw) return new Map()
+    const arr = JSON.parse(raw) as SourcePerformance[]
+    return new Map(arr.map(p => [p.key, p]))
+  } catch {
+    return new Map()
+  }
+}
+
+function saveSourcePerformance(perf: Map<string, SourcePerformance>) {
+  localStorage.setItem(SOURCE_PERF_KEY, JSON.stringify([...perf.values()]))
+}
+
+function recordSourcePerformance(key: string, responseTime: number, success: boolean) {
+  const perf = loadSourcePerformance()
+  const existing = perf.get(key)
+
+  if (existing) {
+    existing.avgResponseTime = (existing.avgResponseTime * 0.7) + (responseTime * 0.3)
+    existing.successRate = existing.successRate * 0.8 + (success ? 0.2 : 0)
+    existing.lastUsed = Date.now()
+  } else {
+    perf.set(key, {
+      key,
+      avgResponseTime: responseTime,
+      successRate: success ? 1 : 0,
+      lastUsed: Date.now(),
+    })
+  }
+  saveSourcePerformance(perf)
+}
+
+function sortSourcesByPerformance(sources: LocalVodSource[]): LocalVodSource[] {
+  const perf = loadSourcePerformance()
+  return [...sources].sort((a, b) => {
+    const perfA = perf.get(a.key)
+    const perfB = perf.get(b.key)
+    if (!perfA && !perfB) return 0
+    if (!perfA) return 1
+    if (!perfB) return -1
+    // Score: lower response time + higher success rate = better
+    const scoreA = perfA.avgResponseTime * (1 - perfA.successRate * 0.5)
+    const scoreB = perfB.avgResponseTime * (1 - perfB.successRate * 0.5)
+    return scoreA - scoreB
+  })
+}
+
 // ─── Source crawler ──────────────────────────────────────────
 
 function buildApiUrl(baseUrl: string, params: Record<string, string>): string {
@@ -75,10 +135,41 @@ export async function searchSource(
   })
 }
 
-// ─── Multi-source parallel search ────────────────────────────
+// ─── Search suggestions ──────────────────────────────────────
 
-const PER_SOURCE_TIMEOUT = 8000
-const MAX_PAGES = 5
+export async function searchSuggestions(keyword: string): Promise<string[]> {
+  if (!keyword || keyword.length < 1) return []
+
+  // Get first enabled source for suggestions
+  const sources = (await loadAllSources()).filter((s) => s.enabled)
+  if (sources.length === 0) return []
+
+  const source = sources[0]
+  const url = buildApiUrl(source.apiUrl, {
+    ac: 'videolist',
+    pg: '1',
+    wd: keyword,
+  })
+
+  try {
+    const data = (await fetchSourceApi(url)) as Record<string, unknown>
+    const list = data['list'] as unknown[] | undefined
+    if (!Array.isArray(list)) return []
+
+    return list.slice(0, 6).map((item) => {
+      const map = item as Record<string, unknown>
+      return readString(map['vod_name']) ?? ''
+    }).filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+// ─── Multi-source parallel search (streaming) ────────────────
+
+const PER_SOURCE_TIMEOUT = 6000
+const MAX_PAGES = 3
+const FAST_SOURCE_COUNT = 8
 
 export interface SearchAllResult {
   items: VodItem[]
@@ -90,17 +181,28 @@ export async function searchAllSources(
   keyword: string,
   cache: SearchCache,
   onBatch?: (items: VodItem[]) => void,
+  fastOnly = false,
 ): Promise<SearchAllResult> {
   const query = keyword.trim()
   if (!query) return { items: [], sourceCount: 0, errorCount: 0 }
 
-  const sources = (await loadAllSources()).filter((s) => s.enabled)
+  let sources = (await loadAllSources()).filter((s) => s.enabled)
   if (sources.length === 0) return { items: [], sourceCount: 0, errorCount: 0 }
+
+  // Sort by performance (smart source sorting)
+  sources = sortSourcesByPerformance(sources)
+
+  // Fast mode: only search top N sources
+  if (fastOnly) {
+    sources = sources.slice(0, FAST_SOURCE_COUNT)
+  }
 
   const allItems: VodItem[] = []
   let errorCount = 0
 
+  // Streaming: process sources as they complete
   const promises = sources.map(async (source) => {
+    const startTime = Date.now()
     try {
       const cached = cache.get(source.key, query, 1)
       if (cached && cached.length > 0) {
@@ -109,10 +211,13 @@ export async function searchAllSources(
           const pageCached = cache.get(source.key, query, p)
           if (pageCached) batch.push(...pageCached)
         }
+        recordSourcePerformance(source.key, 10, true)
         return batch
       }
 
       const page1 = await withTimeout(searchSource(source, query, 1), PER_SOURCE_TIMEOUT)
+      const responseTime = Date.now() - startTime
+      recordSourcePerformance(source.key, responseTime, true)
       cache.set(source.key, query, 1, page1)
       if (page1.length === 0) return []
 
@@ -130,11 +235,14 @@ export async function searchAllSources(
       }
       return results
     } catch {
+      const responseTime = Date.now() - startTime
+      recordSourcePerformance(source.key, responseTime, false)
       errorCount++
       return []
     }
   })
 
+  // Stream results as they arrive
   for (const promise of promises) {
     const items = await promise
     if (items.length > 0) {
