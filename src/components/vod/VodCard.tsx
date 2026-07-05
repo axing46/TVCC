@@ -17,6 +17,7 @@ export function VodCard({ item, aspect = 'poster' }: VodCardProps) {
     <Link
       to={`/detail/${encodeURIComponent(item.sourceKey)}/${encodeURIComponent(item.vodId)}`}
       state={{ item }}
+      onClick={() => sessionStorage.setItem('sv_search_scroll', String(window.scrollY))}
       className="group cursor-pointer hover:-translate-y-0.5 transition-transform duration-200 ease-out block"
     >
       <div className="glass-card p-0 flex flex-col" style={{ backfaceVisibility: 'hidden' }}>

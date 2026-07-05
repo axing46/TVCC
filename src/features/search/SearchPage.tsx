@@ -44,7 +44,29 @@ export function SearchPage() {
   const [activeCat, setActiveCat] = useState(currentCat)
 
   useEffect(() => {
-    if (queryParam) setKeyword(queryParam)
+    if (queryParam) {
+      setKeyword(queryParam)
+      sessionStorage.setItem('sv_search_query', queryParam)
+    }
+  }, [queryParam])
+
+  // Restore scroll position when returning to this page
+  useEffect(() => {
+    if (queryParam) {
+      const savedScroll = sessionStorage.getItem('sv_search_scroll')
+      if (savedScroll) {
+        requestAnimationFrame(() => window.scrollTo(0, parseInt(savedScroll, 10)))
+      }
+    }
+  }, [queryParam])
+
+  // Save scroll position on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (queryParam) sessionStorage.setItem('sv_search_scroll', String(window.scrollY))
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
   }, [queryParam])
 
   useEffect(() => {

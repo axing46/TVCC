@@ -107,7 +107,7 @@ export function HomePage() {
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-lg font-bold text-ink">豆瓣高分电影</h2>
-        <p className="text-[12px] text-muted mt-1">评分 ≥ 7.5 · {movies.length} 部 · 点击搜索片源</p>
+        <p className="text-[12px] text-muted mt-1">评分 ≥ 7.5 · {movies.length} 部 </p>
       </div>
 
       {/* Genre tabs */}

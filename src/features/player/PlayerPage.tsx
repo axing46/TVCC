@@ -82,7 +82,10 @@ export function PlayerPage() {
     <div className="max-w-[1000px] mx-auto animate-fade-up">
       {/* Header */}
       <div className="flex items-center gap-4 mb-4">
-        <button onClick={() => navigate('/search', { replace: true })} className="icon-btn w-10 h-10">
+        <button onClick={() => {
+          const savedQuery = sessionStorage.getItem('sv_search_query')
+          navigate(savedQuery ? `/search?q=${encodeURIComponent(savedQuery)}` : '/search', { replace: true })
+        }} className="icon-btn w-10 h-10">
           <ArrowLeft size={18} strokeWidth={1.5} />
         </button>
         <div className="flex-1 min-w-0">
