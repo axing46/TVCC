@@ -394,6 +394,7 @@ function VideoPlayer({
 
   const [isDragging, setIsDragging] = useState(false)
   const [dragProgress, setDragProgress] = useState(0)
+  const dragProgressRef = useRef(0)
   const progressBarRef = useRef<HTMLDivElement>(null)
   const lastClientXRef = useRef(0)
 
@@ -416,6 +417,7 @@ function VideoPlayer({
     const rect = bar.getBoundingClientRect()
     const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
     setDragProgress(pct)
+    dragProgressRef.current = pct
     video.currentTime = pct * duration
   }
 
@@ -429,6 +431,7 @@ function VideoPlayer({
     const rect = bar.getBoundingClientRect()
     const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
     setDragProgress(pct)
+    dragProgressRef.current = pct
     video.currentTime = pct * duration
   }
 
@@ -442,6 +445,7 @@ function VideoPlayer({
       const rect = bar.getBoundingClientRect()
       const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
       setDragProgress(pct)
+      dragProgressRef.current = pct
       lastClientXRef.current = e.clientX
       // Update video position while dragging
       const video = videoRef.current
@@ -455,6 +459,7 @@ function VideoPlayer({
       const rect = bar.getBoundingClientRect()
       const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
       setDragProgress(pct)
+      dragProgressRef.current = pct
       lastClientXRef.current = touch.clientX
       // Update video position while dragging
       const video = videoRef.current
@@ -463,10 +468,10 @@ function VideoPlayer({
 
     const handleEnd = () => {
       setIsDragging(false)
-      // Final seek to the last position
+      // Final seek to the last position using ref
       const video = videoRef.current
       if (video && duration) {
-        video.currentTime = dragProgress * duration
+        video.currentTime = dragProgressRef.current * duration
       }
     }
 
@@ -778,16 +783,28 @@ function VideoPlayer({
             {/* Volume control */}
             <div
               className="relative flex items-center hidden sm:flex"
-              onMouseEnter={() => setShowVolumeSlider(true)}
-              onMouseLeave={() => setShowVolumeSlider(false)}
+              onMouseEnter={() => {
+                clearTimeout(hideTimer.current)
+                setShowVolumeSlider(true)
+              }}
+              onMouseLeave={() => {
+                // Delay hide to allow moving to slider panel
+                hideTimer.current = setTimeout(() => setShowVolumeSlider(false), 150)
+              }}
             >
               <button onClick={toggleMute}
                 className="p-1.5 text-white/80 hover:text-white transition-all duration-180">
                 {muted || volume === 0 ? <VolumeX size={16} strokeWidth={1.5} /> : <Volume2 size={16} strokeWidth={1.5} />}
               </button>
               {showVolumeSlider && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black/90 backdrop-blur-md border border-white/10
-                  rounded-btn px-2 py-3 shadow-xl z-30 flex flex-col items-center gap-2">
+                <div
+                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black/90 backdrop-blur-md border border-white/10
+                    rounded-btn px-2 py-3 shadow-xl z-30 flex flex-col items-center gap-2"
+                  onMouseEnter={() => clearTimeout(hideTimer.current)}
+                  onMouseLeave={() => {
+                    hideTimer.current = setTimeout(() => setShowVolumeSlider(false), 150)
+                  }}
+                >
                   <span className="text-[10px] text-white/60 tabular-nums">{muted ? 0 : volume}%</span>
                   <div className="relative h-24 flex items-center">
                     <div className="absolute inset-0 w-1 bg-white/20 rounded-full mx-auto left-1/2 -translate-x-1/2" />
