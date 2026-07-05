@@ -395,6 +395,7 @@ function VideoPlayer({
   const [isDragging, setIsDragging] = useState(false)
   const [dragProgress, setDragProgress] = useState(0)
   const progressBarRef = useRef<HTMLDivElement>(null)
+  const lastClientXRef = useRef(0)
 
   const seekToPosition = (clientX: number) => {
     const video = videoRef.current
@@ -408,25 +409,27 @@ function VideoPlayer({
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault()
     setIsDragging(true)
+    lastClientXRef.current = e.clientX
     const video = videoRef.current
     const bar = progressBarRef.current
     if (!video || !duration || !bar) return
     const rect = bar.getBoundingClientRect()
     const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
     setDragProgress(pct)
-    seekToPosition(e.clientX)
+    video.currentTime = pct * duration
   }
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setIsDragging(true)
     const touch = e.touches[0]
+    lastClientXRef.current = touch.clientX
     const video = videoRef.current
     const bar = progressBarRef.current
     if (!video || !duration || !bar) return
     const rect = bar.getBoundingClientRect()
     const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
     setDragProgress(pct)
-    seekToPosition(touch.clientX)
+    video.currentTime = pct * duration
   }
 
   useEffect(() => {
@@ -439,7 +442,10 @@ function VideoPlayer({
       const rect = bar.getBoundingClientRect()
       const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
       setDragProgress(pct)
-      seekToPosition(e.clientX)
+      lastClientXRef.current = e.clientX
+      // Update video position while dragging
+      const video = videoRef.current
+      if (video) video.currentTime = pct * duration
     }
 
     const handleTouchMove = (e: TouchEvent) => {
@@ -449,12 +455,19 @@ function VideoPlayer({
       const rect = bar.getBoundingClientRect()
       const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
       setDragProgress(pct)
-      seekToPosition(touch.clientX)
+      lastClientXRef.current = touch.clientX
+      // Update video position while dragging
+      const video = videoRef.current
+      if (video) video.currentTime = pct * duration
     }
 
     const handleEnd = () => {
       setIsDragging(false)
-      seekToPosition(dragProgress * duration)
+      // Final seek to the last position
+      const video = videoRef.current
+      if (video && duration) {
+        video.currentTime = dragProgress * duration
+      }
     }
 
     window.addEventListener('mousemove', handleMouseMove)
@@ -774,19 +787,30 @@ function VideoPlayer({
               </button>
               {showVolumeSlider && (
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black/90 backdrop-blur-md border border-white/10
-                  rounded-btn px-3 py-2 shadow-xl z-30 flex items-center gap-2">
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={muted ? 0 : volume}
-                    onChange={(e) => changeVolume(parseInt(e.target.value))}
-                    className="w-20 h-1 appearance-none bg-white/20 rounded-full cursor-pointer
-                      [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3
-                      [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer
-                      [&::-webkit-slider-thumb]:shadow-md"
-                  />
-                  <span className="text-[10px] text-white/60 tabular-nums min-w-[32px] text-right">{muted ? 0 : volume}%</span>
+                  rounded-btn px-2 py-3 shadow-xl z-30 flex flex-col items-center gap-2">
+                  <span className="text-[10px] text-white/60 tabular-nums">{muted ? 0 : volume}%</span>
+                  <div className="relative h-24 flex items-center">
+                    <div className="absolute inset-0 w-1 bg-white/20 rounded-full mx-auto left-1/2 -translate-x-1/2" />
+                    <div
+                      className="absolute bottom-0 w-1 bg-accent rounded-full mx-auto left-1/2 -translate-x-1/2"
+                      style={{ height: `${muted ? 0 : volume}%` }}
+                    />
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={muted ? 0 : volume}
+                      onChange={(e) => changeVolume(parseInt(e.target.value))}
+                      className="absolute inset-0 w-full h-full appearance-none bg-transparent cursor-pointer
+                        [&::-webkit-slider-runnable-track]:appearance-none [&::-webkit-slider-runnable-track]:w-1 [&::-webkit-slider-runnable-track]:bg-transparent
+                        [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
+                        [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer
+                        [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:-ml-[7px]
+                        -rotate-90"
+                      style={{ writingMode: 'vertical-lr' as unknown as string, direction: 'rtl' as unknown as string }}
+                    />
+                  </div>
+                  <Volume2 size={12} className="text-white/40" />
                 </div>
               )}
             </div>

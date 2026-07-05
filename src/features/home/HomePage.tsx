@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Star, ChevronDown, ChevronUp, Search, X } from 'lucide-react'
+import { Star, ChevronDown, ChevronUp, Search, X, Copy, Check } from 'lucide-react'
 import { loadMovieData, getGenres, getMoviesByGenre, type MovieItem } from './movieData'
 import { Loading, ErrorState } from '@/components/ui/Status'
 
@@ -8,11 +8,41 @@ const POPUP_DISMISSED_KEY = 'tvcc_popup_dismissed_v1'
 
 function WelcomePopup() {
   const [show, setShow] = useState(false)
+  const [copiedWechat, setCopiedWechat] = useState(false)
+  const [copiedQQ, setCopiedQQ] = useState(false)
 
   useEffect(() => {
     const dismissed = localStorage.getItem(POPUP_DISMISSED_KEY)
     if (!dismissed) {
       setShow(true)
+    }
+  }, [])
+
+  const copyToClipboard = useCallback(async (text: string, type: 'wechat' | 'qq') => {
+    try {
+      await navigator.clipboard.writeText(text)
+      if (type === 'wechat') {
+        setCopiedWechat(true)
+        setTimeout(() => setCopiedWechat(false), 1500)
+      } else {
+        setCopiedQQ(true)
+        setTimeout(() => setCopiedQQ(false), 1500)
+      }
+    } catch {
+      // Fallback
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+      if (type === 'wechat') {
+        setCopiedWechat(true)
+        setTimeout(() => setCopiedWechat(false), 1500)
+      } else {
+        setCopiedQQ(true)
+        setTimeout(() => setCopiedQQ(false), 1500)
+      }
     }
   }, [])
 
@@ -41,11 +71,25 @@ function WelcomePopup() {
         <div className="space-y-3">
           <div className="flex items-center gap-3 p-3 rounded-btn bg-white/[0.03] border border-white/[0.06]">
             <span className="text-[12px] text-muted w-8">微信</span>
-            <span className="text-[13px] text-ink font-medium">18726591481</span>
+            <span className="text-[13px] text-ink font-medium flex-1">18726591481</span>
+            <button
+              onClick={() => copyToClipboard('18726591481', 'wechat')}
+              className="p-1.5 rounded-lg hover:bg-white/10 text-muted hover:text-accent transition-all"
+              title="复制"
+            >
+              {copiedWechat ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+            </button>
           </div>
           <div className="flex items-center gap-3 p-3 rounded-btn bg-white/[0.03] border border-white/[0.06]">
             <span className="text-[12px] text-muted w-8">QQ</span>
-            <span className="text-[13px] text-ink font-medium">1480545128</span>
+            <span className="text-[13px] text-ink font-medium flex-1">1480545128</span>
+            <button
+              onClick={() => copyToClipboard('1480545128', 'qq')}
+              className="p-1.5 rounded-lg hover:bg-white/10 text-muted hover:text-accent transition-all"
+              title="复制"
+            >
+              {copiedQQ ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+            </button>
           </div>
         </div>
 
