@@ -247,6 +247,8 @@ export async function importSourcesFromJson(
 
   const sources = await loadAllSources()
   const existingKeys = new Set(sources.map((s) => s.key))
+  // Also track existing API URLs for dedup
+  const existingUrls = new Set(sources.map((s) => normalizeUrl(s.apiUrl)))
   const added: string[] = []
   const skipped: string[] = []
   const errors: string[] = []
@@ -256,11 +258,19 @@ export async function importSourcesFromJson(
       errors.push(`${remote.name || '(unknown)'}: 缺少必要字段`)
       continue
     }
+    // Dedup by key
     if (existingKeys.has(remote.key)) {
       skipped.push(remote.key)
       continue
     }
+    // Dedup by API URL
+    const normalizedApi = normalizeUrl(remote.api)
+    if (existingUrls.has(normalizedApi)) {
+      skipped.push(remote.key)
+      continue
+    }
     existingKeys.add(remote.key)
+    existingUrls.add(normalizedApi)
     sources.push({
       key: remote.key,
       name: remote.name,
@@ -275,4 +285,12 @@ export async function importSourcesFromJson(
 
   saveSources(sources)
   return { added, skipped, errors }
+}
+
+// Normalize URL for dedup (remove protocol, trailing slash, etc.)
+function normalizeUrl(url: string): string {
+  return url
+    .replace(/^https?:\/\//, '')
+    .replace(/\/$/, '')
+    .toLowerCase()
 }
