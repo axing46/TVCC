@@ -184,6 +184,8 @@ function VideoPlayer({
   const hlsRef = useRef<Hls | null>(null)
   const [playing, setPlaying] = useState(false)
   const [muted, setMuted] = useState(true)
+  const [volume, setVolume] = useState(100)
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [duration, setDuration] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
@@ -206,6 +208,11 @@ function VideoPlayer({
 
     setPlayerError(null)
     setPlayerStatus('正在连接...')
+
+    // Set default volume
+    video.volume = 1
+    setVolume(100)
+    setMuted(true) // Start muted for autoplay policy
 
     let destroyed = false
     let hls: Hls | null = null
@@ -355,6 +362,24 @@ function VideoPlayer({
     if (!video) return
     video.muted = !video.muted
     setMuted(video.muted)
+    if (!video.muted && video.volume === 0) {
+      video.volume = 1
+      setVolume(100)
+    }
+  }
+
+  const changeVolume = (newVol: number) => {
+    const video = videoRef.current
+    if (!video) return
+    video.volume = newVol / 100
+    setVolume(newVol)
+    if (newVol === 0) {
+      video.muted = true
+      setMuted(true)
+    } else if (video.muted) {
+      video.muted = false
+      setMuted(false)
+    }
   }
 
   const toggleFullscreen = () => {
@@ -403,15 +428,15 @@ function VideoPlayer({
         case 'j': e.preventDefault(); if (v) v.currentTime -= 10; break
         case 'arrowright':
         case 'l': e.preventDefault(); if (v) v.currentTime += 10; break
-        case 'arrowup': e.preventDefault(); if (v) v.volume = Math.min(1, v.volume + 0.1); break
-        case 'arrowdown': e.preventDefault(); if (v) v.volume = Math.max(0, v.volume - 0.1); break
+        case 'arrowup': e.preventDefault(); changeVolume(Math.min(100, volume + 10)); break
+        case 'arrowdown': e.preventDefault(); changeVolume(Math.max(0, volume - 10)); break
         case 'n': e.preventDefault(); if (hasNext) onNext(); break
         case 'p': e.preventDefault(); if (hasPrev) onPrev(); break
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [hasNext, hasPrev])
+  }, [hasNext, hasPrev, volume])
 
   // Progress save — every 5 seconds + on close
   useEffect(() => {
@@ -665,10 +690,34 @@ function VideoPlayer({
               )}
             </div>
 
-            <button onClick={toggleMute}
-              className="p-1 text-white/80 hover:text-white transition-all duration-180">
-              {muted ? <VolumeX size={16} strokeWidth={1.5} /> : <Volume2 size={16} strokeWidth={1.5} />}
-            </button>
+            {/* Volume control */}
+            <div
+              className="relative flex items-center"
+              onMouseEnter={() => setShowVolumeSlider(true)}
+              onMouseLeave={() => setShowVolumeSlider(false)}
+            >
+              <button onClick={toggleMute}
+                className="p-1 text-white/80 hover:text-white transition-all duration-180">
+                {muted || volume === 0 ? <VolumeX size={16} strokeWidth={1.5} /> : <Volume2 size={16} strokeWidth={1.5} />}
+              </button>
+              {showVolumeSlider && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black/90 backdrop-blur-md border border-white/10
+                  rounded-btn px-3 py-2 shadow-xl z-30 flex items-center gap-2">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={muted ? 0 : volume}
+                    onChange={(e) => changeVolume(parseInt(e.target.value))}
+                    className="w-20 h-1 appearance-none bg-white/20 rounded-full cursor-pointer
+                      [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3
+                      [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer
+                      [&::-webkit-slider-thumb]:shadow-md"
+                  />
+                  <span className="text-[10px] text-white/60 tabular-nums min-w-[32px] text-right">{muted ? 0 : volume}%</span>
+                </div>
+              )}
+            </div>
 
             <button onClick={toggleFullscreen}
               className="p-1 text-white/80 hover:text-white transition-all duration-180">
