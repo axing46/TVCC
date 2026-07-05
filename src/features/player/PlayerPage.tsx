@@ -347,6 +347,75 @@ function VideoPlayer({
     return () => document.removeEventListener('fullscreenchange', handler)
   }, [])
 
+  // Long press & double tap detection
+  const longPressTimer = useRef<ReturnType<typeof setTimeout>>()
+  const lastTapTime = useRef(0)
+  const [isLongPress, setIsLongPress] = useState(false)
+  const [showSpeedHint, setShowSpeedHint] = useState(false)
+  const [tapSide, setTapSide] = useState<'left' | 'right' | null>(null)
+  const [showTapHint, setShowTapHint] = useState(false)
+
+  const handleVideoInteractionStart = (e: React.TouchEvent | React.MouseEvent) => {
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+    const video = videoRef.current
+    if (!video) return
+
+    // Start long press timer
+    longPressTimer.current = setTimeout(() => {
+      setIsLongPress(true)
+      setShowSpeedHint(true)
+      video.playbackRate = 2
+      setTimeout(() => setShowSpeedHint(false), 1000)
+    }, 500)
+  }
+
+  const handleVideoInteractionEnd = (e: React.TouchEvent | React.MouseEvent) => {
+    const video = videoRef.current
+    if (!video) return
+
+    clearTimeout(longPressTimer.current)
+
+    if (isLongPress) {
+      // Was long press — restore normal speed
+      video.playbackRate = 1
+      setIsLongPress(false)
+      return
+    }
+
+    // Double tap detection
+    const now = Date.now()
+    const clientX = 'changedTouches' in e ? e.changedTouches[0].clientX : e.clientX
+    const screenWidth = window.innerWidth
+    const isLeftSide = clientX < screenWidth / 3
+    const isRightSide = clientX > (screenWidth * 2) / 3
+
+    if (now - lastTapTime.current < 300) {
+      // Double tap — pause/play
+      togglePlay()
+      setShowTapHint(true)
+      setTimeout(() => setShowTapHint(false), 800)
+    } else {
+      // Single tap — show/hide controls
+      setShowControls(true)
+      clearTimeout(hideTimer.current)
+      hideTimer.current = setTimeout(() => {
+        if (playing) setShowControls(false)
+      }, 3000)
+
+      // Show tap side hint
+      if (isLeftSide) {
+        setTapSide('left')
+        setShowTapHint(true)
+        setTimeout(() => { setTapSide(null); setShowTapHint(false) }, 800)
+      } else if (isRightSide) {
+        setTapSide('right')
+        setShowTapHint(true)
+        setTimeout(() => { setTapSide(null); setShowTapHint(false) }, 800)
+      }
+    }
+    lastTapTime.current = now
+  }
+
   const togglePlay = () => {
     const video = videoRef.current
     if (!video) return
@@ -610,7 +679,10 @@ function VideoPlayer({
       <video
         ref={videoRef}
         className="w-full aspect-video bg-black cursor-pointer"
-        onClick={togglePlay}
+        onMouseDown={handleVideoInteractionStart}
+        onMouseUp={handleVideoInteractionEnd}
+        onTouchStart={handleVideoInteractionStart}
+        onTouchEnd={handleVideoInteractionEnd}
         playsInline
         muted
       />
@@ -621,6 +693,33 @@ function VideoPlayer({
           <div className="flex flex-col items-center gap-3">
             <div className="w-8 h-8 border-2 border-accent/40 border-t-accent rounded-full animate-spin" />
             <span className="text-[13px] text-white/70">{playerStatus}</span>
+          </div>
+        </div>
+      )}
+
+      {/* 2x speed hint */}
+      {showSpeedHint && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+          <div className="px-6 py-3 rounded-xl bg-black/80 backdrop-blur-sm animate-fade-up">
+            <span className="text-[18px] font-bold text-accent">2x</span>
+            <span className="text-[12px] text-white/80 ml-2">倍速播放中</span>
+          </div>
+        </div>
+      )}
+
+      {/* Tap hint */}
+      {showTapHint && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+          <div className="px-4 py-2 rounded-lg bg-black/70 backdrop-blur-sm animate-fade-up">
+            {tapSide === 'left' ? (
+              <ChevronLeft size={24} className="text-white/80" />
+            ) : tapSide === 'right' ? (
+              <ChevronRight size={24} className="text-white/80" />
+            ) : playing ? (
+              <Pause size={24} className="text-white/80" />
+            ) : (
+              <Play size={24} className="text-white/80" />
+            )}
           </div>
         </div>
       )}
