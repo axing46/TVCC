@@ -10,6 +10,10 @@ const CURRENT_SOURCES_VERSION = 3 // 更新版本号来触发同步
 const CORS_PROXIES = [
   (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
   (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  (url: string) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+  (url: string) => `https://cors-anywhere.herokuapp.com/${url}`,
+  (url: string) => `https://yacdn.org/proxy/${encodeURIComponent(url)}`,
+  (url: string) => `https://thingproxy.freeboard.io/fetch/${url}`,
 ]
 
 // 38个默认片源配置（来自kvideo-settings）
