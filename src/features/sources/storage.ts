@@ -196,34 +196,53 @@ export async function importSourcesFromJson(
 
   let remoteList: { key: string; name: string; api: string; detail?: string; group?: string; r18?: boolean }[] = []
 
-  if (Array.isArray(data)) {
-    remoteList = data.map((item: Record<string, unknown>) => ({
-      key: String(item['key'] ?? ''),
-      name: String(item['name'] ?? ''),
-      api: String(item['api'] ?? ''),
-      detail: String(item['detail'] ?? item['api'] ?? ''),
-      group: item['group'] as string | undefined,
+  // Helper to extract source from various formats
+  function extractSource(item: Record<string, unknown>): { key: string; name: string; api: string; detail?: string; group?: string; r18?: boolean } {
+    return {
+      key: String(item['key'] ?? item['id'] ?? item['sourceKey'] ?? ''),
+      name: String(item['name'] ?? item['sourceName'] ?? item['title'] ?? ''),
+      api: String(item['api'] ?? item['apiUrl'] ?? item['baseUrl'] ?? item['url'] ?? ''),
+      detail: String(item['detail'] ?? item['detailUrl'] ?? item['api'] ?? item['apiUrl'] ?? item['baseUrl'] ?? ''),
+      group: (item['group'] ?? item['category']) as string | undefined,
       r18: item['r18'] as boolean | undefined,
-    }))
-  } else if (data['sources'] && Array.isArray(data['sources'])) {
-    remoteList = (data['sources'] as Record<string, unknown>[]).map((item) => ({
-      key: String(item['key'] ?? ''),
-      name: String(item['name'] ?? ''),
-      api: String(item['api'] ?? ''),
-      detail: String(item['detail'] ?? item['api'] ?? ''),
-      group: item['group'] as string | undefined,
-      r18: item['r18'] as boolean | undefined,
-    }))
-  } else if (data['api_site']) {
-    const apiSite = data['api_site'] as Record<string, Record<string, unknown>>
-    remoteList = Object.entries(apiSite).map(([key, value]) => ({
-      key,
-      name: String(value['name'] ?? key),
-      api: String(value['api'] ?? ''),
-      detail: String(value['detail'] ?? value['api'] ?? ''),
-      group: value['group'] as string | undefined,
-      r18: value['r18'] as boolean | undefined,
-    }))
+    }
+  }
+
+  // Try to find sources array in various structures
+  function findSourcesArray(obj: unknown): Record<string, unknown>[] | null {
+    if (Array.isArray(obj)) return obj as Record<string, unknown>[]
+
+    if (typeof obj === 'object' && obj !== null) {
+      const record = obj as Record<string, unknown>
+
+      // Check common keys
+      for (const key of ['sources', 'sites', 'list', 'data', 'items']) {
+        if (Array.isArray(record[key])) return record[key] as Record<string, unknown>[]
+      }
+
+      // Check nested: settings.sources, config.sites, etc.
+      for (const key of ['settings', 'config', 'result']) {
+        if (typeof record[key] === 'object' && record[key] !== null) {
+          const nested = record[key] as Record<string, unknown>
+          for (const nkey of ['sources', 'sites', 'list', 'data', 'items']) {
+            if (Array.isArray(nested[nkey])) return nested[nkey] as Record<string, unknown>[]
+          }
+        }
+      }
+
+      // Check api_site format (object with key->source mapping)
+      if (record['api_site'] && typeof record['api_site'] === 'object') {
+        const apiSite = record['api_site'] as Record<string, Record<string, unknown>>
+        return Object.entries(apiSite).map(([key, value]) => ({ ...value, key, id: key }))
+      }
+    }
+
+    return null
+  }
+
+  const sourcesArray = findSourcesArray(data)
+  if (sourcesArray) {
+    remoteList = sourcesArray.map(extractSource).filter(s => s.key && s.api)
   }
 
   const sources = await loadAllSources()
