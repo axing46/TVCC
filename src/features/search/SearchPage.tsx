@@ -159,7 +159,7 @@ export function SearchPage() {
 
       {/* Category tabs */}
       {queryParam && (
-        <div className="flex items-center gap-1.5 mb-6 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-1 sm:gap-1.5 mb-4 sm:mb-6 overflow-x-auto scrollbar-none">
           {CATEGORIES.map((cat) => {
             const count = catCounts[cat.key] ?? 0
             const isActive = activeCat === cat.key
@@ -167,7 +167,7 @@ export function SearchPage() {
               <button
                 key={cat.key}
                 onClick={() => setCategory(cat.key)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-pill text-[12.5px] font-semibold
+                className={`flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-pill text-[11px] sm:text-[12.5px] font-semibold
                   whitespace-nowrap transition-all duration-180
                   ${isActive
                     ? 'bg-accent/15 text-accent border border-accent/30'
@@ -176,7 +176,7 @@ export function SearchPage() {
               >
                 {cat.label}
                 {count > 0 && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isActive ? 'bg-accent/20' : 'bg-white/[0.06]'}`}>
+                  <span className={`text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full ${isActive ? 'bg-accent/20' : 'bg-white/[0.06]'}`}>
                     {count}
                   </span>
                 )}
@@ -188,48 +188,48 @@ export function SearchPage() {
 
       {/* Source + Type filter badges */}
       {queryParam && data && data.items.length > 0 && (
-        <div className="space-y-2 mb-4">
+        <div className="space-y-1.5 sm:space-y-2 mb-3 sm:mb-4">
           {sourceBadges.length > 1 && (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[11px] text-muted/60 mr-1">片源:</span>
+            <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
+              <span className="text-[10px] sm:text-[11px] text-muted/60 mr-0.5 sm:mr-1">片源:</span>
               {sourceBadges.map((s) => {
                 const isActive = sourceFilter === s.key
                 return (
                   <button
                     key={s.key}
                     onClick={() => setSourceFilter(isActive ? null : s.key)}
-                    className={`pill text-[11px] cursor-pointer transition-all duration-150
+                    className={`pill text-[10px] sm:text-[11px] cursor-pointer transition-all duration-150
                       ${isActive ? '!bg-accent/15 !border-accent/30 !text-accent' : 'hover:border-white/20'}`}
                   >
                     {getSourceDisplayName(s.key)}
-                    <span className="ml-1 opacity-60">{s.count}</span>
+                    <span className="ml-0.5 sm:ml-1 opacity-60">{s.count}</span>
                   </button>
                 )
               })}
               {sourceFilter && (
-                <button onClick={() => setSourceFilter(null)} className="text-[10px] text-muted hover:text-ink-2 ml-1">清除</button>
+                <button onClick={() => setSourceFilter(null)} className="text-[9px] sm:text-[10px] text-muted hover:text-ink-2 ml-0.5 sm:ml-1">清除</button>
               )}
             </div>
           )}
           {typeBadges.length > 1 && (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[11px] text-muted/60 mr-1">类型:</span>
+            <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
+              <span className="text-[10px] sm:text-[11px] text-muted/60 mr-0.5 sm:mr-1">类型:</span>
               {typeBadges.map(([t, count]) => {
                 const isActive = typeFilter === t
                 return (
                   <button
                     key={t}
                     onClick={() => setTypeFilter(isActive ? null : t)}
-                    className={`pill text-[11px] cursor-pointer transition-all duration-150
+                    className={`pill text-[10px] sm:text-[11px] cursor-pointer transition-all duration-150
                       ${isActive ? '!bg-accent/15 !border-accent/30 !text-accent' : 'hover:border-white/20'}`}
                   >
                     {t}
-                    <span className="ml-1 opacity-60">{count}</span>
+                    <span className="ml-0.5 sm:ml-1 opacity-60">{count}</span>
                   </button>
                 )
               })}
               {typeFilter && (
-                <button onClick={() => setTypeFilter(null)} className="text-[10px] text-muted hover:text-ink-2 ml-1">清除</button>
+                <button onClick={() => setTypeFilter(null)} className="text-[9px] sm:text-[10px] text-muted hover:text-ink-2 ml-0.5 sm:ml-1">清除</button>
               )}
             </div>
           )}

@@ -108,6 +108,23 @@
   }
   .scroll-row::-webkit-scrollbar { display: none; }
   .scroll-row > * { scroll-snap-align: start; flex-shrink: 0; }
+
+  /* ─── Mobile optimizations ─── */
+  @media (max-width: 640px) {
+    .glass-card {
+      border-radius: 1rem;
+    }
+
+    .icon-btn {
+      width: 32px;
+      height: 32px;
+    }
+
+    .pill {
+      padding: 2px 8px;
+      font-size: 9px;
+    }
+  }
 }
 
 @keyframes skeleton {

@@ -1,8 +1,68 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Star, ChevronDown, ChevronUp, Search } from 'lucide-react'
+import { Star, ChevronDown, ChevronUp, Search, X } from 'lucide-react'
 import { loadMovieData, getGenres, getMoviesByGenre, type MovieItem } from './movieData'
 import { Loading, ErrorState } from '@/components/ui/Status'
+
+const POPUP_DISMISSED_KEY = 'tvcc_popup_dismissed_v1'
+
+function WelcomePopup() {
+  const [show, setShow] = useState(false)
+
+  useEffect(() => {
+    const dismissed = localStorage.getItem(POPUP_DISMISSED_KEY)
+    if (!dismissed) {
+      setShow(true)
+    }
+  }, [])
+
+  if (!show) return null
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="glass-card max-w-[380px] w-full p-6 relative animate-fade-up">
+        <button
+          onClick={() => {
+            setShow(false)
+            localStorage.setItem(POPUP_DISMISSED_KEY, '1')
+          }}
+          className="absolute top-3 right-3 p-1 rounded-full hover:bg-white/10 text-muted hover:text-ink transition-all"
+        >
+          <X size={18} />
+        </button>
+
+        <div className="text-center mb-5">
+          <h3 className="text-[18px] font-bold text-ink mb-2">感谢使用 TVCC</h3>
+          <p className="text-[13px] text-muted leading-relaxed">
+            使用中有任何问题或优化意见均可联系
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 p-3 rounded-btn bg-white/[0.03] border border-white/[0.06]">
+            <span className="text-[12px] text-muted w-8">微信</span>
+            <span className="text-[13px] text-ink font-medium">18726591481</span>
+          </div>
+          <div className="flex items-center gap-3 p-3 rounded-btn bg-white/[0.03] border border-white/[0.06]">
+            <span className="text-[12px] text-muted w-8">QQ</span>
+            <span className="text-[13px] text-ink font-medium">1480545128</span>
+          </div>
+        </div>
+
+        <button
+          onClick={() => {
+            setShow(false)
+            localStorage.setItem(POPUP_DISMISSED_KEY, '1')
+          }}
+          className="w-full mt-5 py-2.5 rounded-btn bg-accent/15 border border-accent/30 text-accent text-[13px] font-medium
+            hover:bg-accent/25 transition-all duration-200"
+        >
+          我知道了
+        </button>
+      </div>
+    </div>
+  )
+}
 
 const INITIAL_SHOW = 12
 
@@ -104,6 +164,7 @@ export function HomePage() {
 
   return (
     <div className="max-w-7xl mx-auto">
+      <WelcomePopup />
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-lg font-bold text-ink">豆瓣高分电影</h2>

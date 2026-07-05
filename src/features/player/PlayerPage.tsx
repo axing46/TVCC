@@ -392,13 +392,83 @@ function VideoPlayer({
     }
   }
 
-  const seek = (e: React.MouseEvent<HTMLDivElement>) => {
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragProgress, setDragProgress] = useState(0)
+  const progressBarRef = useRef<HTMLDivElement>(null)
+
+  const seekToPosition = (clientX: number) => {
     const video = videoRef.current
-    if (!video || !duration) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    const pct = (e.clientX - rect.left) / rect.width
+    const bar = progressBarRef.current
+    if (!video || !duration || !bar) return
+    const rect = bar.getBoundingClientRect()
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
     video.currentTime = pct * duration
   }
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+    const video = videoRef.current
+    const bar = progressBarRef.current
+    if (!video || !duration || !bar) return
+    const rect = bar.getBoundingClientRect()
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+    setDragProgress(pct)
+    seekToPosition(e.clientX)
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setIsDragging(true)
+    const touch = e.touches[0]
+    const video = videoRef.current
+    const bar = progressBarRef.current
+    if (!video || !duration || !bar) return
+    const rect = bar.getBoundingClientRect()
+    const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
+    setDragProgress(pct)
+    seekToPosition(touch.clientX)
+  }
+
+  useEffect(() => {
+    if (!isDragging) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      e.preventDefault()
+      const bar = progressBarRef.current
+      if (!bar || !duration) return
+      const rect = bar.getBoundingClientRect()
+      const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+      setDragProgress(pct)
+      seekToPosition(e.clientX)
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0]
+      const bar = progressBarRef.current
+      if (!bar || !duration) return
+      const rect = bar.getBoundingClientRect()
+      const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
+      setDragProgress(pct)
+      seekToPosition(touch.clientX)
+    }
+
+    const handleEnd = () => {
+      setIsDragging(false)
+      seekToPosition(dragProgress * duration)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleEnd)
+    window.addEventListener('touchmove', handleTouchMove)
+    window.addEventListener('touchend', handleEnd)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleEnd)
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleEnd)
+    }
+  }, [isDragging, duration])
 
   const formatTime = (t: number) => {
     const m = Math.floor(t / 60)
@@ -580,47 +650,49 @@ function VideoPlayer({
         >
           {/* Progress bar */}
           <div
-            className="h-1 bg-white/20 rounded-full mb-2 cursor-pointer group/progress"
-            onClick={seek}
+            ref={progressBarRef}
+            className={`h-1.5 bg-white/20 rounded-full mb-2 cursor-pointer group/progress ${isDragging ? 'h-2' : ''}`}
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
           >
             <div
-              className="h-full bg-accent rounded-full relative"
-              style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%' }}
+              className="h-full bg-accent rounded-full relative transition-none"
+              style={{ width: isDragging ? `${dragProgress * 100}%` : duration > 0 ? `${(currentTime / duration) * 100}%` : '0%' }}
             >
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full
-                opacity-0 group-hover/progress:opacity-100 transition-opacity shadow-md" />
+              <div className={`absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full
+                shadow-md transition-opacity ${isDragging ? 'opacity-100 scale-110' : 'opacity-0 group-hover/progress:opacity-100'}`} />
             </div>
           </div>
 
           {/* Buttons row */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-0.5 sm:gap-1">
               <button onClick={onPrev} disabled={!hasPrev}
-                className="p-1 text-white/80 hover:text-white disabled:opacity-30 transition-all duration-180">
-                <SkipBack size={16} strokeWidth={1.5} />
+                className="p-1.5 sm:p-1 text-white/80 hover:text-white disabled:opacity-30 transition-all duration-180">
+                <SkipBack size={18} strokeWidth={1.5} />
               </button>
               <button onClick={togglePlay}
-                className="p-1 text-white/90 hover:text-white transition-all duration-180">
-                {playing ? <Pause size={18} fill="white" /> : <Play size={18} fill="white" />}
+                className="p-1.5 sm:p-1 text-white/90 hover:text-white transition-all duration-180">
+                {playing ? <Pause size={20} fill="white" /> : <Play size={20} fill="white" />}
               </button>
               <button onClick={onNext} disabled={!hasNext}
-                className="p-1 text-white/80 hover:text-white disabled:opacity-30 transition-all duration-180">
-                <SkipForward size={16} strokeWidth={1.5} />
+                className="p-1.5 sm:p-1 text-white/80 hover:text-white disabled:opacity-30 transition-all duration-180">
+                <SkipForward size={18} strokeWidth={1.5} />
               </button>
             </div>
 
-            <span className="text-[11px] text-white/60 tabular-nums min-w-[72px]">
+            <span className="text-[10px] sm:text-[11px] text-white/60 tabular-nums min-w-[60px] sm:min-w-[72px]">
               {formatTime(currentTime)} / {formatTime(duration)}
             </span>
 
-            <div className="flex-1" />
+            <div className="flex-1 hidden sm:block" />
 
             {/* Quality selector */}
             {levels.length > 1 && (
               <div className="relative">
                 <button
                   onClick={() => setShowQualities(!showQualities)}
-                  className={`p-1 transition-all duration-180 text-[11px] font-bold min-w-[36px] text-center rounded
+                  className={`p-1 sm:p-1.5 transition-all duration-180 text-[10px] sm:text-[11px] font-bold min-w-[30px] sm:min-w-[36px] text-center rounded
                     ${currentLevel === -1 ? 'text-accent' : 'text-white/80 hover:text-white'}`}
                   title="清晰度"
                 >
@@ -665,10 +737,10 @@ function VideoPlayer({
             )}
 
             {/* Speed button + menu */}
-            <div className="relative">
+            <div className="relative hidden sm:block">
               <button
                 onClick={() => setShowSpeedMenu(!showSpeedMenu)}
-                className={`p-1 transition-all duration-180 ${speed !== 1 ? 'text-accent' : 'text-white/80 hover:text-white'}`}
+                className={`p-1.5 transition-all duration-180 ${speed !== 1 ? 'text-accent' : 'text-white/80 hover:text-white'}`}
               >
                 <Gauge size={15} strokeWidth={1.5} />
               </button>
@@ -692,12 +764,12 @@ function VideoPlayer({
 
             {/* Volume control */}
             <div
-              className="relative flex items-center"
+              className="relative flex items-center hidden sm:flex"
               onMouseEnter={() => setShowVolumeSlider(true)}
               onMouseLeave={() => setShowVolumeSlider(false)}
             >
               <button onClick={toggleMute}
-                className="p-1 text-white/80 hover:text-white transition-all duration-180">
+                className="p-1.5 text-white/80 hover:text-white transition-all duration-180">
                 {muted || volume === 0 ? <VolumeX size={16} strokeWidth={1.5} /> : <Volume2 size={16} strokeWidth={1.5} />}
               </button>
               {showVolumeSlider && (
@@ -720,7 +792,7 @@ function VideoPlayer({
             </div>
 
             <button onClick={toggleFullscreen}
-              className="p-1 text-white/80 hover:text-white transition-all duration-180">
+              className="p-1.5 text-white/80 hover:text-white transition-all duration-180">
               {isFullscreen ? <Minimize size={16} strokeWidth={1.5} /> : <Maximize size={16} strokeWidth={1.5} />}
             </button>
           </div>
