@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Download, ClipboardPaste, Trash2, ChevronUp, ChevronDown, Search } from 'lucide-react'
+import { Plus, Download, ClipboardPaste, Trash2, ChevronUp, ChevronDown, Search, AlertTriangle } from 'lucide-react'
 import { useSources } from './hooks'
 import type { LocalVodSource } from '@/core/models'
 import { getSourceDisplayName } from '@/utils/source-names'
@@ -8,7 +8,8 @@ import { Loading, EmptyState } from '@/components/ui/Status'
 const DEFAULT_REMOTE_URL = 'https://raw.githubusercontent.com/WEP-56/TTTTV-config/main/sources.json'
 
 export function SourcesPage() {
-  const { sources, isLoading, toggle, remove, importSources, importSourcesFromJson, addSource } = useSources()
+  const { sources, isLoading, toggle, remove, clearAll, importSources, importSourcesFromJson, addSource } = useSources()
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [importMode, setImportMode] = useState<'url' | 'paste' | 'add'>('url')
   const [importUrl, setImportUrl] = useState(DEFAULT_REMOTE_URL)
   const [pasteText, setPasteText] = useState('')
@@ -141,14 +142,26 @@ export function SourcesPage() {
         )}
       </div>
 
-      {/* ─── Filter ─── */}
-      {sources.length > 6 && (
-        <div className="relative mb-3">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-          <input type="text" value={filter} onChange={(e) => setFilter(e.target.value)}
-            className="w-full glass-input h-9 pl-9 pr-3 text-[12px] placeholder:text-muted/60" placeholder="筛选片源..." />
-        </div>
-      )}
+      {/* ─── Filter + Clear All ─── */}
+      <div className="flex items-center gap-2 mb-3">
+        {sources.length > 6 && (
+          <div className="relative flex-1">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+            <input type="text" value={filter} onChange={(e) => setFilter(e.target.value)}
+              className="w-full glass-input h-9 pl-9 pr-3 text-[12px] placeholder:text-muted/60" placeholder="筛选片源..." />
+          </div>
+        )}
+        {sources.length > 0 && (
+          <button
+            onClick={() => setShowClearConfirm(true)}
+            className="flex items-center gap-1.5 px-3 h-9 rounded-btn bg-red-500/10 border border-red-500/20
+              text-red-400 text-[12px] font-medium hover:bg-red-500/20 transition-all duration-200 flex-shrink-0"
+          >
+            <Trash2 size={13} />
+            一键删除
+          </button>
+        )}
+      </div>
 
       {/* ─── Source list ─── */}
       {sources.length === 0 ? (
@@ -165,6 +178,42 @@ export function SourcesPage() {
               onRemove={() => remove(source.key)}
             />
           ))}
+        </div>
+      )}
+
+      {/* ─── Clear All Confirm Dialog ─── */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="glass-card max-w-[340px] w-full p-6 animate-fade-up">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-500/15 flex items-center justify-center">
+                <AlertTriangle size={20} className="text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-[15px] font-bold text-ink">确认删除全部片源</h3>
+                <p className="text-[12px] text-muted mt-0.5">此操作不可撤销</p>
+              </div>
+            </div>
+            <p className="text-[13px] text-muted mb-5">
+              将删除 {sources.length} 个片源，删除后需要重新导入。
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                className="flex-1 py-2.5 rounded-btn border border-white/10 text-[13px] text-muted
+                  hover:text-ink hover:border-white/20 transition-all duration-200"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => { clearAll(); setShowClearConfirm(false) }}
+                className="flex-1 py-2.5 rounded-btn bg-red-500 text-white text-[13px] font-medium
+                  hover:bg-red-600 transition-all duration-200"
+              >
+                确认删除
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

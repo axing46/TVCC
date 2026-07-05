@@ -130,6 +130,10 @@ export async function deleteSource(key: string): Promise<void> {
   saveSources(filtered)
 }
 
+export async function clearAllSources(): Promise<void> {
+  saveSources([])
+}
+
 async function fetchWithProxy(url: string): Promise<string> {
   // Try direct access first
   try {

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { loadAllSources, toggleSource, deleteSource, addSource as addSourceStorage, importRemoteSources, importSourcesFromJson } from './storage'
+import { loadAllSources, toggleSource, deleteSource, clearAllSources, addSource as addSourceStorage, importRemoteSources, importSourcesFromJson } from './storage'
 import type { LocalVodSource } from '@/core/models'
 
 export function useSources() {
@@ -23,6 +23,11 @@ export function useSources() {
     invalidate()
   }
 
+  const clearAll = async () => {
+    await clearAllSources()
+    invalidate()
+  }
+
   const importSources = async (url: string) => {
     const result = await importRemoteSources(url)
     invalidate()
@@ -34,5 +39,5 @@ export function useSources() {
     invalidate()
   }
 
-  return { sources, isLoading, toggle, remove, importSources, importSourcesFromJson, addSource }
+  return { sources, isLoading, toggle, remove, clearAll, importSources, importSourcesFromJson, addSource }
 }
