@@ -28,7 +28,7 @@ export function AppShell({ children, hideNav }: { children: ReactNode; hideNav?:
                 <Tv size={16} className="text-accent sm:w-[18px] sm:h-[18px]" />
               </div>
               <div className="hidden sm:flex flex-col">
-                <span className="text-base font-bold text-ink leading-tight">Super Video</span>
+                <span className="text-base font-bold text-ink leading-tight">TVCC</span>
                 <span className="text-[10px] text-muted leading-tight">影视聚合搜索</span>
               </div>
             </NavLink>
