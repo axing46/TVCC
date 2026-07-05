@@ -151,12 +151,24 @@ export function SourcesPage() {
             />
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center cursor-pointer
+              onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-accent', 'bg-accent/10') }}
+              onDragLeave={(e) => { e.currentTarget.classList.remove('border-accent', 'bg-accent/10') }}
+              onDrop={(e) => {
+                e.preventDefault()
+                e.currentTarget.classList.remove('border-accent', 'bg-accent/10')
+                const file = e.dataTransfer.files[0]
+                if (file && file.name.endsWith('.json')) {
+                  handleFileImport({ target: { files: [file] } } as unknown as React.ChangeEvent<HTMLInputElement>)
+                } else {
+                  setImportResult('请拖入 .json 格式的文件')
+                }
+              }}
+              className="border-2 border-dashed border-white/20 rounded-xl p-6 sm:p-8 text-center cursor-pointer
                 hover:border-accent/50 hover:bg-accent/5 transition-all duration-200"
             >
-              <FileUp size={32} className="mx-auto mb-3 text-muted" />
-              <p className="text-[13px] text-ink font-medium mb-1">点击选择 JSON 文件</p>
-              <p className="text-[11px] text-muted">支持 .json 格式的片源配置文件</p>
+              <FileUp size={28} sm:size={32} className="mx-auto mb-2 sm:mb-3 text-muted" />
+              <p className="text-[12px] sm:text-[13px] text-ink font-medium mb-1">点击选择或拖入 JSON 文件</p>
+              <p className="text-[10px] sm:text-[11px] text-muted">支持 .json 格式的片源配置文件</p>
             </div>
             {importing && (
               <p className="mt-2 text-[12px] text-muted text-center">导入中...</p>
