@@ -1,21 +1,19 @@
 /**
- * Image URL handling:
- * - HTTP images on HTTPS page → route through /api/proxy (Mixed Content fix)
- * - HTTPS images → use directly, rely on referrerPolicy="no-referrer" to bypass hotlink
+ * Route ALL external images through /api/proxy to:
+ * - Fix Mixed Content (HTTP on HTTPS)
+ * - Bypass hotlink protection (Referer checks)
  */
-
-const IS_HTTPS = typeof window !== 'undefined' && window.location.protocol === 'https:'
 
 export function proxyImageUrl(url: string | undefined | null): string {
   if (!url) return ''
   if (url.startsWith('/api/proxy')) return url
   if (url.startsWith('data:')) return url
+  if (url.startsWith('/')) return url // relative paths
 
-  // HTTP on HTTPS page → must proxy (browser blocks Mixed Content)
-  if (IS_HTTPS && url.startsWith('http://')) {
+  // All external URLs → proxy
+  if (url.startsWith('http://') || url.startsWith('https://')) {
     return `/api/proxy?url=${encodeURIComponent(url)}`
   }
 
-  // HTTPS images → use directly (img tag will use referrerPolicy="no-referrer")
   return url
 }
