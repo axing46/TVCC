@@ -780,56 +780,47 @@ function VideoPlayer({
               )}
             </div>
 
-            {/* Volume control */}
+            {/* Volume control - horizontal slider like Bilibili/YouTube */}
             <div
-              className="relative flex items-center hidden sm:flex"
+              className="relative flex items-center gap-1 hidden sm:flex group/vol"
               onMouseEnter={() => {
                 clearTimeout(hideTimer.current)
                 setShowVolumeSlider(true)
               }}
               onMouseLeave={() => {
-                // Delay hide to allow moving to slider panel
-                hideTimer.current = setTimeout(() => setShowVolumeSlider(false), 150)
+                hideTimer.current = setTimeout(() => setShowVolumeSlider(false), 300)
               }}
             >
               <button onClick={toggleMute}
                 className="p-1.5 text-white/80 hover:text-white transition-all duration-180">
                 {muted || volume === 0 ? <VolumeX size={16} strokeWidth={1.5} /> : <Volume2 size={16} strokeWidth={1.5} />}
               </button>
-              {showVolumeSlider && (
-                <div
-                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black/90 backdrop-blur-md border border-white/10
-                    rounded-btn px-2 py-3 shadow-xl z-30 flex flex-col items-center gap-2"
-                  onMouseEnter={() => clearTimeout(hideTimer.current)}
-                  onMouseLeave={() => {
-                    hideTimer.current = setTimeout(() => setShowVolumeSlider(false), 150)
-                  }}
-                >
-                  <span className="text-[10px] text-white/60 tabular-nums">{muted ? 0 : volume}%</span>
-                  <div className="relative h-24 flex items-center">
-                    <div className="absolute inset-0 w-1 bg-white/20 rounded-full mx-auto left-1/2 -translate-x-1/2" />
-                    <div
-                      className="absolute bottom-0 w-1 bg-accent rounded-full mx-auto left-1/2 -translate-x-1/2"
-                      style={{ height: `${muted ? 0 : volume}%` }}
-                    />
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={muted ? 0 : volume}
-                      onChange={(e) => changeVolume(parseInt(e.target.value))}
-                      className="absolute inset-0 w-full h-full appearance-none bg-transparent cursor-pointer
-                        [&::-webkit-slider-runnable-track]:appearance-none [&::-webkit-slider-runnable-track]:w-1 [&::-webkit-slider-runnable-track]:bg-transparent
-                        [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
-                        [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer
-                        [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:-ml-[7px]
-                        -rotate-90"
-                      style={{ writingMode: 'vertical-lr' as unknown as string, direction: 'rtl' as unknown as string }}
-                    />
-                  </div>
-                  <Volume2 size={12} className="text-white/40" />
+              <div
+                className={`overflow-hidden transition-all duration-200 ease-out ${showVolumeSlider ? 'w-20 opacity-100' : 'w-0 opacity-0'}`}
+              >
+                <div className="relative h-4 flex items-center px-0.5">
+                  <div className="absolute left-0.5 right-0.5 h-1 bg-white/20 rounded-full" />
+                  <div
+                    className="absolute left-0.5 h-1 bg-accent rounded-full"
+                    style={{ width: `${muted ? 0 : volume}%`, maxWidth: 'calc(100% - 4px)' }}
+                  />
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={muted ? 0 : volume}
+                    onChange={(e) => changeVolume(parseInt(e.target.value))}
+                    className="absolute inset-0 w-full h-full appearance-none bg-transparent cursor-pointer
+                      [&::-webkit-slider-runnable-track]:appearance-none [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:bg-transparent
+                      [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3
+                      [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer
+                      [&::-webkit-slider-thumb]:shadow-md"
+                  />
                 </div>
-              )}
+              </div>
+              <span className={`text-[10px] text-white/60 tabular-nums transition-all duration-200 ${showVolumeSlider ? 'w-8 opacity-100' : 'w-0 opacity-0 overflow-hidden'}`}>
+                {muted ? 0 : volume}
+              </span>
             </div>
 
             <button onClick={toggleFullscreen}

@@ -4,7 +4,7 @@ import { Star, ChevronDown, ChevronUp, Search, X, Copy, Check } from 'lucide-rea
 import { loadMovieData, getGenres, getMoviesByGenre, type MovieItem } from './movieData'
 import { Loading, ErrorState } from '@/components/ui/Status'
 
-const POPUP_DISMISSED_KEY = 'tvcc_popup_dismissed_v1'
+const POPUP_SHOWN_KEY = 'tvcc_popup_shown_session'
 
 function WelcomePopup() {
   const [show, setShow] = useState(false)
@@ -12,11 +12,17 @@ function WelcomePopup() {
   const [copiedQQ, setCopiedQQ] = useState(false)
 
   useEffect(() => {
-    const dismissed = localStorage.getItem(POPUP_DISMISSED_KEY)
-    if (!dismissed) {
+    // Use sessionStorage - clears when browser/tab closes, shows again on reopen
+    const shown = sessionStorage.getItem(POPUP_SHOWN_KEY)
+    if (!shown) {
       setShow(true)
     }
   }, [])
+
+  const handleDismiss = () => {
+    setShow(false)
+    sessionStorage.setItem(POPUP_SHOWN_KEY, '1')
+  }
 
   const copyToClipboard = useCallback(async (text: string, type: 'wechat' | 'qq') => {
     try {
@@ -52,10 +58,7 @@ function WelcomePopup() {
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="glass-card max-w-[380px] w-full p-6 relative animate-fade-up">
         <button
-          onClick={() => {
-            setShow(false)
-            localStorage.setItem(POPUP_DISMISSED_KEY, '1')
-          }}
+          onClick={handleDismiss}
           className="absolute top-3 right-3 p-1 rounded-full hover:bg-white/10 text-muted hover:text-ink transition-all"
         >
           <X size={18} />
@@ -94,10 +97,7 @@ function WelcomePopup() {
         </div>
 
         <button
-          onClick={() => {
-            setShow(false)
-            localStorage.setItem(POPUP_DISMISSED_KEY, '1')
-          }}
+          onClick={handleDismiss}
           className="w-full mt-5 py-2.5 rounded-btn bg-accent/15 border border-accent/30 text-accent text-[13px] font-medium
             hover:bg-accent/25 transition-all duration-200"
         >
