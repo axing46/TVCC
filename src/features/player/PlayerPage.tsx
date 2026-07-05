@@ -215,6 +215,12 @@ function VideoPlayer({
         enableWorker: true,
         lowLatencyMode: false,
         debug: false,
+        // ABR: prefer higher quality
+        abrEwmaDefaultEstimate: 5_000_000, // Assume 5Mbps initially (not 500kbps)
+        abrBandWidthFactor: 0.95,
+        abrBandWidthUpFactor: 0.7,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
       })
       hlsRef.current = hls
 
@@ -237,7 +243,7 @@ function VideoPlayer({
           })).sort((a, b) => b.height - a.height)
           setLevels(qualityLevels)
 
-          // KVideo-style: filter HEVC, prefer H.264
+          // Prefer H.264, fallback to highest quality
           const h264Indices: number[] = []
           hlsLevels.forEach((level, i) => {
             const codec = level.videoCodec?.toLowerCase() || ''
@@ -245,10 +251,15 @@ function VideoPlayer({
               h264Indices.push(i)
             }
           })
+
           if (h264Indices.length > 0 && h264Indices.length < hlsLevels.length) {
-            hls!.currentLevel = h264Indices[h264Indices.length - 1]
-          } else {
-            hls!.currentLevel = -1
+            // Has both H.264 and HEVC — pick highest H.264
+            const sorted = [...h264Indices].sort((a, b) => hlsLevels[b].height - hlsLevels[a].height)
+            hls!.currentLevel = sorted[0]
+          } else if (hlsLevels.length > 0) {
+            // All same codec — force highest quality
+            const sorted = [...qualityLevels].sort((a, b) => b.height - a.height)
+            hls!.currentLevel = sorted[0].index
           }
 
           setCurrentLevel(hls!.currentLevel)
