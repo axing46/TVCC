@@ -1,44 +1,46 @@
-import axios from 'axios'
+/**
+ * Network client — all source API requests go through /api/proxy
+ * to avoid CORS and Mixed Content issues on HTTPS deployments.
+ */
 
-const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-
-// In dev mode, route external API calls through Vite proxy to avoid:
-// - CORS errors (browser can't set Referer/Origin)
-// - ERR_CONNECTION_CLOSED (servers detect cross-origin browser requests)
-function apiProxyInterceptor(config: any) {
-  if (!isDev) return config
-  const url = config.url ?? ''
-  if (!url.startsWith('http://') && !url.startsWith('https://')) return config
-  if (url.includes('localhost') || url.includes('127.0.0.1')) return config
-
-  // Build full URL with params
-  let fullUrl = url
-  if (config.params && Object.keys(config.params).length > 0) {
-    const sep = url.includes('?') ? '&' : '?'
-    fullUrl = url + sep + new URLSearchParams(config.params).toString()
-  }
-
-  config.url = `/api/fetch?url=${encodeURIComponent(fullUrl)}`
-  config.baseURL = ''
-  config.params = {}
-  return config
+/** Route any URL through our proxy */
+function proxyUrl(url: string): string {
+  return `/api/proxy?url=${encodeURIComponent(url)}`
 }
 
-export const vodClient = axios.create({
-  timeout: 15000,
-  headers: { 'Accept': 'application/json, text/plain, */*' },
-})
-vodClient.interceptors.request.use(apiProxyInterceptor)
-vodClient.interceptors.response.use(
-  (res) => res,
-  (error) => {
-    if (error.code === 'ECONNABORTED') return Promise.reject(new Error('请求超时'))
-    return Promise.reject(error)
-  },
-)
+/**
+ * Fetch source API data through the proxy.
+ * Handles both direct URLs and proxied URLs automatically.
+ */
+export async function fetchSourceApi(url: string): Promise<unknown> {
+  const proxied = proxyUrl(url)
+  const res = await fetch(proxied)
+  if (!res.ok) {
+    throw new Error(`Proxy error ${res.status}: ${res.statusText}`)
+  }
+  const text = await res.text()
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
+}
 
-export const doubanClient = axios.create({
-  timeout: 10000,
-  headers: { 'Accept': 'application/json' },
-})
-doubanClient.interceptors.request.use(apiProxyInterceptor)
+/**
+ * Fetch Douban/Bangumi API through the proxy.
+ */
+export async function fetchDoubanApi(url: string, params?: Record<string, string>): Promise<unknown> {
+  const targetUrl = params
+    ? `${url}?${new URLSearchParams(params).toString()}`
+    : url
+  const proxied = proxyUrl(targetUrl)
+  const res = await fetch(proxied, {
+    headers: {
+      'Referer': 'https://movie.douban.com/',
+    },
+  })
+  if (!res.ok) {
+    throw new Error(`Douban API error ${res.status}`)
+  }
+  return res.json()
+}
