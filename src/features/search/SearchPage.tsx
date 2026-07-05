@@ -1,11 +1,25 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, Trash2, Film, Tv, Laugh, Clapperboard } from 'lucide-react'
 import { useSearch } from './hooks'
 import { VodGrid } from '@/components/vod/VodGrid'
 import { EmptyState, ErrorState } from '@/components/ui/Status'
 import type { VodItem } from '@/core/models'
 import { getSourceDisplayName } from '@/utils/source-names'
+
+// 热搜词
+const HOT_SEARCHES = ['漫威', '周星驰', '三体', '流浪地球', '庆余年', '漫长的季节', '繁花', '狂飙']
+
+// 搜索历史存储key
+const SEARCH_HISTORY_KEY = 'tvcc_search_history'
+
+// 快捷分类
+const QUICK_CATEGORIES = [
+  { key: 'movie', label: '电影', icon: Film, color: 'from-blue-500/20 to-blue-600/10' },
+  { key: 'tv', label: '电视剧', icon: Tv, color: 'from-green-500/20 to-green-600/10' },
+  { key: 'variety', label: '综艺', icon: Laugh, color: 'from-pink-500/20 to-pink-600/10' },
+  { key: 'anime', label: '动漫', icon: Clapperboard, color: 'from-purple-500/20 to-purple-600/10' },
+]
 
 // 更新内容数据
 const UPDATE_ITEMS = [
@@ -15,6 +29,35 @@ const UPDATE_ITEMS = [
   { id: 4, title: '手机适配', desc: '全面优化移动端UI，提供更好的手机浏览体验' },
   { id: 5, title: '联系我们', desc: '新增首页弹窗，展示联系方式及交流群信息' },
 ]
+
+// 获取搜索历史
+function getSearchHistory(): string[] {
+  try {
+    const raw = localStorage.getItem(SEARCH_HISTORY_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+// 保存搜索历史
+function saveSearchHistory(keyword: string) {
+  const history = getSearchHistory()
+  const filtered = history.filter(h => h !== keyword)
+  filtered.unshift(keyword)
+  localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(filtered.slice(0, 10)))
+}
+
+// 删除搜索历史
+function deleteSearchHistory(keyword: string) {
+  const history = getSearchHistory()
+  localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history.filter(h => h !== keyword)))
+}
+
+// 清空搜索历史
+function clearSearchHistory() {
+  localStorage.removeItem(SEARCH_HISTORY_KEY)
+}
 
 function UpdateBanner() {
   const [current, setCurrent] = useState(0)
@@ -69,6 +112,97 @@ function UpdateBanner() {
               i === current ? 'bg-accent w-3' : 'bg-white/30 hover:bg-white/50'
             }`}
           />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// 热搜词组件
+function HotSearches({ onSelect }: { onSelect: (q: string) => void }) {
+  return (
+    <div className="mb-5">
+      <h3 className="text-[13px] font-semibold text-ink mb-3">热门搜索</h3>
+      <div className="flex flex-wrap gap-2">
+        {HOT_SEARCHES.map((q) => (
+          <button
+            key={q}
+            onClick={() => onSelect(q)}
+            className="px-3 py-1.5 rounded-pill bg-white/[0.04] border border-white/[0.08] text-[12px] text-muted
+              hover:bg-accent/10 hover:border-accent/30 hover:text-accent transition-all duration-200"
+          >
+            {q}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// 搜索历史组件
+function SearchHistory({ onSelect, onDelete, onClear }: {
+  onSelect: (q: string) => void
+  onDelete: (q: string) => void
+  onClear: () => void
+}) {
+  const [history, setHistory] = useState<string[]>([])
+
+  useEffect(() => {
+    setHistory(getSearchHistory())
+  }, [])
+
+  if (history.length === 0) return null
+
+  return (
+    <div className="mb-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-[13px] font-semibold text-ink">搜索历史</h3>
+        <button
+          onClick={() => { onClear(); setHistory([]) }}
+          className="flex items-center gap-1 text-[11px] text-muted hover:text-ink transition-colors"
+        >
+          <Trash2 size={12} />
+          清除
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {history.map((q) => (
+          <div key={q} className="flex items-center gap-1 px-3 py-1.5 rounded-pill bg-white/[0.04] border border-white/[0.08]">
+            <button
+              onClick={() => onSelect(q)}
+              className="text-[12px] text-muted hover:text-accent transition-colors"
+            >
+              {q}
+            </button>
+            <button
+              onClick={() => { onDelete(q); setHistory(h => h.filter(i => i !== q)) }}
+              className="text-muted/50 hover:text-ink transition-colors ml-1"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// 快捷分类组件
+function QuickCategories({ onSelect }: { onSelect: (q: string) => void }) {
+  return (
+    <div className="mb-5">
+      <h3 className="text-[13px] font-semibold text-ink mb-3">快捷分类</h3>
+      <div className="grid grid-cols-4 gap-2 sm:gap-3">
+        {QUICK_CATEGORIES.map(({ key, label, icon: Icon, color }) => (
+          <button
+            key={key}
+            onClick={() => onSelect(label)}
+            className={`flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl bg-gradient-to-b ${color}
+              border border-white/[0.06] hover:border-white/[0.12] transition-all duration-200 group`}
+          >
+            <Icon size={24} className="text-muted group-hover:text-accent transition-colors" strokeWidth={1.5} />
+            <span className="text-[12px] font-medium text-muted group-hover:text-ink transition-colors">{label}</span>
+          </button>
         ))}
       </div>
     </div>
@@ -198,8 +332,15 @@ export function SearchPage() {
     e.preventDefault()
     const q = keyword.trim()
     if (q) {
+      saveSearchHistory(q)
       setParams({ q, cat: activeCat === 'all' ? undefined : activeCat } as Record<string, string>)
     }
+  }
+
+  const handleSelectSearch = (q: string) => {
+    setKeyword(q)
+    saveSearchHistory(q)
+    setParams({ q, cat: activeCat === 'all' ? undefined : activeCat } as Record<string, string>)
   }
 
   const setCategory = (cat: string) => {
@@ -215,16 +356,31 @@ export function SearchPage() {
       {!queryParam && (
         <>
           <form onSubmit={handleSearch} className="glass-input flex items-center mb-5">
+            <Search size={18} className="text-muted ml-4" strokeWidth={1.5} />
             <input
               type="text"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               placeholder="输入关键词搜索..."
               className="flex-1 bg-transparent border-none outline-none text-[15px] text-ink
-                placeholder:text-muted px-6 py-4"
+                placeholder:text-muted px-4 py-4"
               autoFocus
             />
+            <button
+              type="submit"
+              className="px-4 py-2 mr-2 rounded-lg bg-accent/15 text-accent text-[13px] font-medium
+                hover:bg-accent/25 transition-all duration-200"
+            >
+              搜索
+            </button>
           </form>
+          <HotSearches onSelect={handleSelectSearch} />
+          <SearchHistory
+            onSelect={handleSelectSearch}
+            onDelete={deleteSearchHistory}
+            onClear={clearSearchHistory}
+          />
+          <QuickCategories onSelect={handleSelectSearch} />
           <UpdateBanner />
         </>
       )}
