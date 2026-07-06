@@ -257,8 +257,9 @@ export async function importSourcesFromJson(
 
   const sources = await loadAllSources()
   const existingKeys = new Set(sources.map((s) => s.key))
-  // Also track existing API URLs for dedup
   const existingUrls = new Set(sources.map((s) => normalizeUrl(s.apiUrl)))
+  const existingDomains = new Set(sources.map((s) => extractDomain(s.apiUrl)))
+  const existingNames = new Set(sources.map((s) => normalizeName(s.name)))
   const added: string[] = []
   const skipped: string[] = []
   const errors: string[] = []
@@ -268,19 +269,48 @@ export async function importSourcesFromJson(
       errors.push(`${remote.name || '(unknown)'}: 缺少必要字段`)
       continue
     }
+
+    const normalizedApi = normalizeUrl(remote.api)
+    const domain = extractDomain(remote.api)
+    const normalizedName = normalizeName(remote.name)
+
     // Dedup by key
     if (existingKeys.has(remote.key)) {
       skipped.push(remote.key)
       continue
     }
-    // Dedup by API URL
-    const normalizedApi = normalizeUrl(remote.api)
+
+    // Dedup by exact normalized URL
     if (existingUrls.has(normalizedApi)) {
       skipped.push(remote.key)
       continue
     }
+
+    // Dedup by domain (if same domain with similar path pattern)
+    if (domain && existingDomains.has(domain)) {
+      // Check if it's really the same source (same domain + similar API path)
+      const isDuplicate = sources.some(s => {
+        const existingDomain = extractDomain(s.apiUrl)
+        return existingDomain === domain && normalizeUrl(s.apiUrl) === normalizedApi
+      })
+      if (isDuplicate) {
+        skipped.push(remote.key)
+        continue
+      }
+    }
+
+    // Dedup by name (if name is very similar)
+    if (normalizedName && existingNames.has(normalizedName)) {
+      skipped.push(remote.key)
+      continue
+    }
+
+    // Add to tracking sets
     existingKeys.add(remote.key)
     existingUrls.add(normalizedApi)
+    if (domain) existingDomains.add(domain)
+    existingNames.add(normalizedName)
+
     sources.push({
       key: remote.key,
       name: remote.name,
@@ -297,10 +327,40 @@ export async function importSourcesFromJson(
   return { added, skipped, errors }
 }
 
-// Normalize URL for dedup (remove protocol, trailing slash, etc.)
+// Normalize source name for dedup
+function normalizeName(name: string): string {
+  return (name || '')
+    .replace(/\s+/g, '') // Remove spaces
+    .replace(/[资源采集线路极速高清VIP]/g, '') // Remove common suffixes
+    .replace(/\d+$/g, '') // Remove trailing numbers
+    .toLowerCase()
+    .trim()
+}
+
+// Normalize URL for dedup
 function normalizeUrl(url: string): string {
   return url
-    .replace(/^https?:\/\//, '')
-    .replace(/\/$/, '')
+    .replace(/^https?:\/\//, '') // Remove protocol
+    .replace(/^www\./, '') // Remove www prefix
+    .replace(/\/+$/, '') // Remove trailing slashes
+    .replace(/\/api\.php\/provide\/vod.*$/i, '') // Remove common API path
+    .replace(/\/api\/.*$/i, '') // Remove /api/ paths
+    .replace(/:\d+$/, '') // Remove port numbers
     .toLowerCase()
+    .trim()
+}
+
+// Extract domain from URL for domain-level dedup
+function extractDomain(url: string): string {
+  try {
+    const normalized = url.replace(/^https?:\/\//, '').replace(/^www\./, '')
+    const parts = normalized.split('/')[0].split('.')
+    // Get main domain (last 2 parts)
+    if (parts.length >= 2) {
+      return parts.slice(-2).join('.')
+    }
+    return normalized.split('/')[0]
+  } catch {
+    return ''
+  }
 }
