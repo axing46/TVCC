@@ -2,88 +2,94 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Theme Variables (outside @layer for higher priority) ─── */
+:root {
+  /* Light Mode Palette */
+  --bg-color-light: #ffffff;
+  --bg-card-light: #ffffff;
+  --text-color-light: #1d1d1f;
+  --text-secondary-light: #6e6e73;
+  --accent-color-light: #0056b3;
+  --accent-glow-light: rgba(0, 86, 179, 0.25);
+  --glass-bg-light: #ffffff;
+  --glass-border-light: rgba(0, 0, 0, 0.08);
+  --shadow-light: rgba(0, 0, 0, 0.06);
+  --highlight-light: rgba(255, 255, 255, 0.8);
+
+  /* Dark Mode Palette */
+  --bg-color-dark: #08090B;
+  --bg-card-dark: rgba(20, 20, 22, 0.9);
+  --text-color-dark: #f5f5f7;
+  --text-secondary-dark: #8e8e93;
+  --accent-color-dark: #00F5D4;
+  --accent-glow-dark: rgba(0, 245, 212, 0.25);
+  --glass-bg-dark: rgba(18, 18, 18, 0.75);
+  --glass-border-dark: rgba(255, 255, 255, 0.08);
+  --shadow-dark: rgba(0, 0, 0, 0.3);
+  --highlight-dark: rgba(255, 255, 255, 0.05);
+
+  /* Universal Tokens */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-full: 9999px;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth: cubic-bezier(0.45, 0, 0.55, 1);
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+
+  /* Active Theme (default: dark) */
+  --bg-color: var(--bg-color-dark);
+  --bg-card: var(--bg-card-dark);
+  --text-color: var(--text-color-dark);
+  --text-secondary: var(--text-secondary-dark);
+  --accent: var(--accent-color-dark);
+  --accent-glow: var(--accent-glow-dark);
+  --glass-bg: var(--glass-bg-dark);
+  --glass-border: var(--glass-border-dark);
+  --shadow: var(--shadow-dark);
+  --highlight: var(--highlight-dark);
+  --blur-amount: 20px;
+}
+
+/* Light theme - use :root for higher specificity */
+:root[data-theme="light"] {
+  --bg-color: var(--bg-color-light);
+  --bg-card: var(--bg-card-light);
+  --text-color: var(--text-color-light);
+  --text-secondary: var(--text-secondary-light);
+  --accent: var(--accent-color-light);
+  --accent-glow: var(--accent-glow-light);
+  --glass-bg: var(--glass-bg-light);
+  --glass-border: var(--glass-border-light);
+  --shadow: var(--shadow-light);
+  --highlight: var(--highlight-light);
+  --blur-amount: 0px;
+}
+
+/* Body styles - outside @layer for priority */
+html, body {
+  background-color: var(--bg-color) !important;
+  color: var(--text-color);
+  transition: background-color var(--duration-slow) var(--ease-smooth),
+              color var(--duration-slow) var(--ease-smooth);
+}
+
 @layer base {
   * {
     -webkit-tap-highlight-color: transparent;
     box-sizing: border-box;
   }
 
-  :root {
-    /* Light Mode Palette */
-    --bg-color-light: #ffffff;
-    --bg-card-light: #ffffff;
-    --text-color-light: #1d1d1f;
-    --text-secondary-light: #6e6e73;
-    --accent-color-light: #0056b3;
-    --accent-glow-light: rgba(0, 86, 179, 0.25);
-    --glass-bg-light: #ffffff;
-    --glass-border-light: rgba(0, 0, 0, 0.08);
-    --shadow-light: rgba(0, 0, 0, 0.06);
-    --highlight-light: rgba(255, 255, 255, 0.8);
-
-    /* Dark Mode Palette */
-    --bg-color-dark: #08090B;
-    --bg-card-dark: rgba(20, 20, 22, 0.9);
-    --text-color-dark: #f5f5f7;
-    --text-secondary-dark: #8e8e93;
-    --accent-color-dark: #00F5D4;
-    --accent-glow-dark: rgba(0, 245, 212, 0.25);
-    --glass-bg-dark: rgba(18, 18, 18, 0.75);
-    --glass-border-dark: rgba(255, 255, 255, 0.08);
-    --shadow-dark: rgba(0, 0, 0, 0.3);
-    --highlight-dark: rgba(255, 255, 255, 0.05);
-
-    /* Universal Tokens */
-    --radius-sm: 0.5rem;
-    --radius-md: 0.75rem;
-    --radius-lg: 1rem;
-    --radius-xl: 1.5rem;
-    --radius-full: 9999px;
-
-    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-    --ease-smooth: cubic-bezier(0.45, 0, 0.55, 1);
-    --duration-fast: 150ms;
-    --duration-normal: 250ms;
-    --duration-slow: 400ms;
-
-    /* Active Theme (default: dark) */
-    --bg-color: var(--bg-color-dark);
-    --bg-card: var(--bg-card-dark);
-    --text-color: var(--text-color-dark);
-    --text-secondary: var(--text-secondary-dark);
-    --accent: var(--accent-color-dark);
-    --accent-glow: var(--accent-glow-dark);
-    --glass-bg: var(--glass-bg-dark);
-    --glass-border: var(--glass-border-dark);
-    --shadow: var(--shadow-dark);
-    --highlight: var(--highlight-dark);
-    --blur-amount: 20px;
-  }
-
-  [data-theme="light"] {
-    --bg-color: var(--bg-color-light);
-    --bg-card: var(--bg-card-light);
-    --text-color: var(--text-color-light);
-    --text-secondary: var(--text-secondary-light);
-    --accent: var(--accent-color-light);
-    --accent-glow: var(--accent-glow-light);
-    --glass-bg: var(--glass-bg-light);
-    --glass-border: var(--glass-border-light);
-    --shadow: var(--shadow-light);
-    --highlight: var(--highlight-light);
-    --blur-amount: 0px;
-  }
-
   body {
-    background-color: var(--bg-color);
-    color: var(--text-color);
     min-height: 100vh;
     overflow-x: hidden;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    transition: background-color var(--duration-slow) var(--ease-smooth),
-                color var(--duration-slow) var(--ease-smooth);
   }
 
   /* Scrollbar */
@@ -95,8 +101,8 @@
   }
   ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
 
-  [data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.12); }
-  [data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.2); }
+  :root[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.12); }
+  :root[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.2); }
 
   ::selection { background: var(--accent-glow); color: var(--text-color); }
 }
