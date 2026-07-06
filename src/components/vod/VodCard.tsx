@@ -11,16 +11,23 @@ interface VodCardProps {
   layout?: 'poster' | 'landscape'
   /** Number of sources with same name */
   sourceCount?: number
+  /** All items with same name (for multi-source) */
+  allItems?: VodItem[]
 }
 
-export function VodCard({ item, layout = 'landscape', sourceCount }: VodCardProps) {
+export function VodCard({ item, layout = 'landscape', sourceCount, allItems }: VodCardProps) {
   const [imgError, setImgError] = useState(false)
+
+  // Build state with all items for multi-source support
+  const linkState = allItems && allItems.length > 1
+    ? { item, allItems }
+    : { item }
 
   if (layout === 'landscape') {
     return (
       <Link
         to={`/detail/${encodeURIComponent(item.sourceKey)}/${encodeURIComponent(item.vodId)}`}
-        state={{ item }}
+        state={linkState}
         onClick={() => sessionStorage.setItem('sv_search_scroll', String(window.scrollY))}
         className="group cursor-pointer hover:-translate-y-0.5 transition-transform duration-200 ease-out block"
       >

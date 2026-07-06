@@ -16,9 +16,13 @@ export function PlayerPage() {
   const { sourceKey, vodId } = useParams<{ sourceKey: string; vodId: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const srcIdx = parseInt(searchParams.get('src') ?? '0', 10)
   const epIdx = parseInt(searchParams.get('ep') ?? '0', 10)
+
+  // Get allItems from location state for multi-source support
+  const allItems = (location.state as { allItems?: VodItem[] } | null)?.allItems ?? []
 
   const { data: detail, isLoading, isError, error } = useDetail(
     decodeURIComponent(sourceKey ?? ''),
@@ -29,6 +33,12 @@ export function PlayerPage() {
   const currentSource = sources[srcIdx]
   const currentEpisode = currentSource?.episodes?.[epIdx]
   const episodeUrl = currentEpisode?.url ?? ''
+
+  // Current source index in allItems for auto-switch
+  const [currentSourceIndex, setCurrentSourceIndex] = useState(() => {
+    if (allItems.length === 0) return -1
+    return allItems.findIndex(item => item.sourceKey === decodeURIComponent(sourceKey ?? ''))
+  })
 
   // Find prev/next episode
   let globalIndex = 0
@@ -298,8 +308,27 @@ function VideoPlayer({
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (destroyed) return
         if (data.fatal) {
-          // Don't try recoverMediaError() — it creates recovery loops.
-          // Just show the error and let the user retry manually.
+          // Auto-switch to next source if available
+          if (allItems.length > 1 && currentSourceIndex >= 0 && currentSourceIndex < allItems.length - 1) {
+            const nextItem = allItems[currentSourceIndex + 1]
+            if (nextItem) {
+              console.log('[player] Auto-switching to source:', nextItem.sourceKey)
+              // Find the same episode in the next source
+              const nextSources = parsePlayUrl(nextItem.vodPlayUrl)
+              if (nextSources.length > 0 && nextSources[0].episodes.length > epIdx) {
+                setCurrentSourceIndex(currentSourceIndex + 1)
+                const sk = encodeURIComponent(nextItem.sourceKey)
+                const vid = encodeURIComponent(nextItem.vodId)
+                navigate(`/play/${sk}/${vid}?src=0&ep=${epIdx}`, {
+                  replace: true,
+                  state: { allItems }
+                })
+                return
+              }
+            }
+          }
+
+          // No more sources to switch — show error
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
               setPlayerError(`网络错误：${data.details || '无法加载视频流'}`)

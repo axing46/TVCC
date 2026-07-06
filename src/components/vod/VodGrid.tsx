@@ -21,8 +21,8 @@ function normalizeForGrouping(name: string): string {
     .toLowerCase()
 }
 
-// Merge items with same name, keep the one with best image
-function mergeDuplicateItems(items: VodItem[]): { item: VodItem; sourceCount: number }[] {
+// Merge items with same name, keep all sources
+function mergeDuplicateItems(items: VodItem[]): { item: VodItem; sourceCount: number; allItems: VodItem[] }[] {
   const groups = new Map<string, VodItem[]>()
 
   for (const item of items) {
@@ -34,11 +34,12 @@ function mergeDuplicateItems(items: VodItem[]): { item: VodItem; sourceCount: nu
   }
 
   return Array.from(groups.entries()).map(([, group]) => {
-    // Pick the item with the best image (longest URL usually means higher quality)
+    // Pick the item with the best image
     const bestItem = group.sort((a, b) => (b.vodPic?.length || 0) - (a.vodPic?.length || 0))[0]
     return {
       item: bestItem,
-      sourceCount: group.length
+      sourceCount: group.length,
+      allItems: group // Keep all items for multi-source playback
     }
   })
 }
@@ -47,7 +48,7 @@ export function VodGrid({ items, loading, layout = 'landscape', mergeDuplicates 
   // Merge duplicates if requested
   const displayItems = useMemo(() => {
     if (!mergeDuplicates) {
-      return items.map(item => ({ item, sourceCount: 1 }))
+      return items.map(item => ({ item, sourceCount: 1, allItems: [item] }))
     }
     return mergeDuplicateItems(items)
   }, [items, mergeDuplicates])
@@ -71,9 +72,9 @@ export function VodGrid({ items, loading, layout = 'landscape', mergeDuplicates 
 
   return (
     <div className={gridClass}>
-      {displayItems.map(({ item, sourceCount }) => (
+      {displayItems.map(({ item, sourceCount, allItems }) => (
         <div key={`${item.sourceKey}-${item.vodId}`} className="animate-fade-up opacity-0 [animation-fill-mode:forwards]">
-          <VodCard item={item} layout={layout} sourceCount={sourceCount} />
+          <VodCard item={item} layout={layout} sourceCount={sourceCount} allItems={allItems} />
         </div>
       ))}
     </div>

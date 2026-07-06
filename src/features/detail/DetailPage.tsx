@@ -1,10 +1,11 @@
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { ArrowLeft, Star, Heart, Clock, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Star, Heart, Clock, AlertTriangle, Layers } from 'lucide-react'
 import { useDetail } from './hooks'
 import { parsePlayUrl } from './api'
 import { useFavorites } from '@/features/favorites/hooks'
 import { Loading, ErrorState } from '@/components/ui/Status'
 import { proxyImageUrl } from '@/utils/proxy'
+import { getSourceDisplayName } from '@/utils/source-names'
 import type { VodItem } from '@/core/models'
 
 export function DetailPage() {
@@ -13,7 +14,9 @@ export function DetailPage() {
   const location = useLocation()
 
   // Try to get data from navigation state first (from search results)
-  const stateItem = (location.state as { item?: VodItem } | null)?.item
+  const state = location.state as { item?: VodItem; allItems?: VodItem[] } | null
+  const stateItem = state?.item
+  const allItems = state?.allItems ?? []
 
   const decodedSourceKey = decodeURIComponent(sourceKey ?? '')
   const decodedVodId = decodeURIComponent(vodId ?? '')
@@ -34,6 +37,9 @@ export function DetailPage() {
 
   const data = skipFetch ? stateItem! : fetchedData
   const { isFavorited, toggleFavorite } = useFavorites()
+
+  // Collect all available sources for multi-source playback
+  const allSources = allItems.length > 1 ? allItems : (data ? [data] : [])
 
   if (isLoading) return <Loading />
   if (isError) return (
@@ -171,9 +177,40 @@ export function DetailPage() {
         </div>
       </div>
 
+      {/* Multi-source info */}
+      {allSources.length > 1 && (
+        <div className="mt-6 glass-card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Layers size={16} className="text-accent" />
+            <h3 className="text-[14px] font-semibold text-ink">可用片源 ({allSources.length}个)</h3>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {allSources.map((src, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  // Navigate to this source's detail
+                  navigate(`/detail/${encodeURIComponent(src.sourceKey)}/${encodeURIComponent(src.vodId)}`, {
+                    state: { item: src, allItems: allSources },
+                    replace: true
+                  })
+                }}
+                className={`px-3 py-1.5 rounded-btn text-[11px] font-medium transition-all duration-150
+                  ${src.sourceKey === data.sourceKey
+                    ? 'bg-accent/15 text-accent border border-accent/30'
+                    : 'bg-white/[0.04] border border-white/[0.06] text-muted hover:text-ink hover:border-accent/20'
+                  }`}
+              >
+                {getSourceDisplayName(src.sourceKey)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Episodes */}
       {sources.length > 0 ? (
-        <div className="mt-8">
+        <div className="mt-6">
           <h2 className="text-[19px] font-bold text-ink mb-4">选集</h2>
           {sources.map((source, si) => (
             <div key={si} className="mb-6">
@@ -187,7 +224,9 @@ export function DetailPage() {
                     onClick={() => {
                       const sk = encodeURIComponent(data.sourceKey)
                       const vid = encodeURIComponent(data.vodId)
-                      navigate(`/play/${sk}/${vid}?src=${si}&ep=${ei}`)
+                      navigate(`/play/${sk}/${vid}?src=${si}&ep=${ei}`, {
+                        state: { allItems: allSources }
+                      })
                     }}
                     className="px-3 py-2 rounded-btn text-[12px] font-medium text-ink-2
                       bg-white/[0.04] border border-white/[0.06]
