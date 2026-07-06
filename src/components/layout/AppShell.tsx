@@ -88,13 +88,13 @@ export function AppShell({ children, hideNav }: { children: ReactNode; hideNav?:
               <div className="w-[180px] sm:w-[240px] lg:w-[280px] hidden sm:block">
                 <SearchBar compact />
               </div>
-              {/* Theme toggle */}
+              {/* Theme toggle - disabled, under construction */}
               <button
-                onClick={toggleTheme}
-                className="icon-btn w-8 h-8"
-                title={isDark ? '切换到白天模式' : '切换到夜间模式'}
+                onClick={() => alert('施工中...')}
+                className="icon-btn w-8 h-8 opacity-40 cursor-not-allowed"
+                title="白天模式（施工中）"
               >
-                {isDark ? <Sun size={14} strokeWidth={1.5} /> : <Moon size={14} strokeWidth={1.5} />}
+                <Sun size={14} strokeWidth={1.5} />
               </button>
               {/* Mobile nav icons (phone only) */}
               <div className="flex sm:hidden items-center gap-0.5">
