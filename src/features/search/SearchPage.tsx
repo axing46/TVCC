@@ -437,6 +437,22 @@ export function SearchPage() {
         </div>
       )}
 
+      {/* Search progress indicator - show during loading */}
+      {queryParam && searchProgress && searchProgress.total > 0 && (
+        <div className="flex items-center justify-center gap-2 mb-4 py-2 px-4 rounded-lg bg-accent/5 border border-accent/10">
+          <Loader2 size={14} className="animate-spin text-accent" />
+          <span className="text-[12px] text-accent font-medium">
+            正在搜索 {searchProgress.searched}/{searchProgress.total} 个片源
+          </span>
+          <div className="flex-1 max-w-[100px] h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-accent rounded-full transition-all duration-300"
+              style={{ width: `${(searchProgress.searched / searchProgress.total) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Results */}
       {!queryParam ? (
         <EmptyState message="输入关键词开始搜索" />
@@ -449,28 +465,6 @@ export function SearchPage() {
         <VodGrid items={[]} loading />
       ) : (
         <>
-          {/* Search progress indicator */}
-          {searchProgress && searchProgress.total > 0 && (
-            <div className="flex items-center justify-center gap-2 mb-4 py-2 px-4 rounded-lg bg-accent/5 border border-accent/10">
-              <Loader2 size={14} className="animate-spin text-accent" />
-              <span className="text-[12px] text-accent font-medium">
-                正在搜索 {searchProgress.searched}/{searchProgress.total} 个片源
-              </span>
-              <div className="flex-1 max-w-[100px] h-1.5 bg-white/10 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-accent rounded-full transition-all duration-300"
-                  style={{ width: `${(searchProgress.searched / searchProgress.total) * 100}%` }}
-                />
-              </div>
-            </div>
-          )}
-          {/* Streaming indicator */}
-          {isStreaming && !searchProgress && finalItems.length > 0 && (
-            <div className="flex items-center justify-center gap-2 mb-4 py-2 text-[12px] text-muted">
-              <Loader2 size={14} className="animate-spin" />
-              正在加载更多结果...
-            </div>
-          )}
           <VodGrid items={finalItems} mergeDuplicates />
         </>
       )}
