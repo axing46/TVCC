@@ -28,26 +28,23 @@ const DOUBAN_API = {
 
 // Fetch with proxy fallback
 async function fetchWithProxy(url: string): Promise<string> {
-  const proxies = [
+  // Use our own proxy to avoid CORS issues
+  const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`
+
+  try {
+    const res = await fetch(proxyUrl)
+    if (res.ok) return await res.text()
+  } catch {
+    // Proxy failed
+  }
+
+  // Fallback to CORS proxies
+  const corsProxies = [
     (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
     (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
   ]
 
-  // Try direct first
-  try {
-    const res = await fetch(url, {
-      headers: {
-        'Referer': 'https://movie.douban.com/',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      }
-    })
-    if (res.ok) return await res.text()
-  } catch {
-    // Direct failed
-  }
-
-  // Try proxies
-  for (const proxy of proxies) {
+  for (const proxy of corsProxies) {
     try {
       const res = await fetch(proxy(url))
       if (res.ok) return await res.text()
@@ -56,7 +53,7 @@ async function fetchWithProxy(url: string): Promise<string> {
     }
   }
 
-  throw new Error('Failed to fetch douban data')
+  throw new Error('无法获取豆瓣数据')
 }
 
 // Parse douban API response
