@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
+import { useParams, useSearchParams, useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft, Play, Pause, Maximize, Minimize, SkipBack, SkipForward, Volume2, VolumeX, AlertTriangle, ExternalLink, Gauge, ChevronLeft, ChevronRight, List, X } from 'lucide-react'
 import Hls from 'hls.js'
 import { useDetail } from '@/features/detail/hooks'
 import { parsePlayUrl } from '@/features/detail/api'
 import { addHistory } from '@/features/history/storage'
 import { Loading, ErrorState } from '@/components/ui/Status'
+import type { VodItem } from '@/core/models/vod'
 
 /** Route video requests through Vite's embedded proxy for anti-leech headers */
 function proxy(url: string): string {
@@ -117,6 +118,14 @@ export function PlayerPage() {
         onNext={() => goToEpisode(1)}
         hasPrev={globalIndex > 0}
         hasNext={globalIndex < totalEpisodes - 1}
+        sources={sources}
+        srcIdx={srcIdx}
+        epIdx={epIdx}
+        sourceKey={decodedSourceKey}
+        vodId={decodedVodId}
+        allItems={allItems}
+        currentSourceIndex={currentSourceIndex}
+        onSwitchSource={(newIndex: number) => setCurrentSourceIndex(newIndex)}
         onProgress={(progress) => {
           if (detail?.vodName) {
             addHistory({
@@ -172,6 +181,11 @@ export function PlayerPage() {
 
 // ─── Video Player Component ──────────────────────────────────
 
+interface PlaySource {
+  name: string
+  episodes: { name: string; url: string }[]
+}
+
 function VideoPlayer({
   url,
   title,
@@ -179,6 +193,14 @@ function VideoPlayer({
   onNext,
   hasPrev,
   hasNext,
+  sources,
+  srcIdx,
+  epIdx,
+  sourceKey,
+  vodId,
+  allItems,
+  currentSourceIndex,
+  onSwitchSource,
   onProgress,
 }: {
   url: string
@@ -187,11 +209,21 @@ function VideoPlayer({
   onNext: () => void
   hasPrev: boolean
   hasNext: boolean
+  sources: PlaySource[]
+  srcIdx: number
+  epIdx: number
+  sourceKey: string
+  vodId: string
+  allItems: VodItem[]
+  currentSourceIndex: number
+  onSwitchSource: (index: number) => void
   onProgress?: (progress: number) => void
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const hlsRef = useRef<Hls | null>(null)
+  const retryCountRef = useRef(0)
+  const MAX_RETRIES = 3
   const [playing, setPlaying] = useState(false)
   const [muted, setMuted] = useState(true)
   const [volume, setVolume] = useState(100)
@@ -210,6 +242,7 @@ function VideoPlayer({
   const [currentLevel, setCurrentLevel] = useState(-1) // -1 = auto ABR
   const [showQualities, setShowQualities] = useState(false)
   const hideTimer = useRef<ReturnType<typeof setTimeout>>()
+  const navigate = useNavigate()
 
   const isM3u8 = url.toLowerCase().includes('.m3u8')
 
@@ -235,11 +268,12 @@ function VideoPlayer({
     setPlayerError(null)
     setPlayerStatus('正在连接...')
     setShowLoadingTip(false)
+    retryCountRef.current = 0
 
-    // Set default volume
+    // Set default volume — start muted for autoplay policy
     video.volume = 1
     setVolume(100)
-    setMuted(true) // Start muted for autoplay policy
+    setMuted(true)
 
     let destroyed = false
     let hls: Hls | null = null
@@ -247,18 +281,48 @@ function VideoPlayer({
     const proxyUrl = proxy(url)
     console.log('[player] Loading:', proxyUrl)
 
+    const tryPlay = () => {
+      if (destroyed) return
+      const playPromise = video.play()
+      if (playPromise) {
+        playPromise.catch(() => {
+          // Autoplay blocked — show click-to-play
+          if (!destroyed) setPlayerStatus('点击播放')
+        })
+      }
+    }
+
+    const retryLoad = () => {
+      if (destroyed) return
+      if (retryCountRef.current < MAX_RETRIES) {
+        retryCountRef.current++
+        console.log(`[player] Retry ${retryCountRef.current}/${MAX_RETRIES}`)
+        setPlayerStatus(`重试中 (${retryCountRef.current}/${MAX_RETRIES})...`)
+        setTimeout(() => {
+          if (destroyed) return
+          if (hls) {
+            hls.startLoad()
+          } else {
+            video.src = proxyUrl
+            video.load()
+            tryPlay()
+          }
+        }, 1000 * retryCountRef.current)
+      }
+    }
+
     if (isM3u8 && Hls.isSupported()) {
       hls = new Hls({
         enableWorker: true,
         lowLatencyMode: false,
         debug: false,
         // ABR: prefer higher quality
-        abrEwmaDefaultEstimate: 8_000_000, // Assume 8Mbps initially for better quality
+        abrEwmaDefaultEstimate: 8_000_000,
         abrBandWidthFactor: 0.95,
         abrBandWidthUpFactor: 0.7,
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
-        startLevel: -1, // Auto start level
+        startLevel: -1,
       })
       hlsRef.current = hls
 
@@ -267,6 +331,7 @@ function VideoPlayer({
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         if (destroyed) return
+        retryCountRef.current = 0
         setPlayerError(null)
         setPlayerStatus('')
 
@@ -291,11 +356,9 @@ function VideoPlayer({
           })
 
           if (h264Indices.length > 0 && h264Indices.length < hlsLevels.length) {
-            // Has both H.264 and HEVC — pick highest H.264
             const sorted = [...h264Indices].sort((a, b) => hlsLevels[b].height - hlsLevels[a].height)
             hls!.currentLevel = sorted[0]
           } else if (hlsLevels.length > 0) {
-            // All same codec — force highest quality
             const sorted = [...qualityLevels].sort((a, b) => b.height - a.height)
             hls!.currentLevel = sorted[0].index
           }
@@ -303,21 +366,33 @@ function VideoPlayer({
           setCurrentLevel(hls!.currentLevel)
         }
 
-        video.play().catch(() => setPlayerStatus('点击播放'))
+        tryPlay()
       })
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (destroyed) return
         if (data.fatal) {
+          // Try recovery for media errors first
+          if (data.type === Hls.ErrorTypes.MEDIA_ERROR && retryCountRef.current < MAX_RETRIES) {
+            retryCountRef.current++
+            console.log(`[player] Media error, recovering (${retryCountRef.current}/${MAX_RETRIES})`)
+            setPlayerStatus(`媒体错误，恢复中 (${retryCountRef.current}/${MAX_RETRIES})...`)
+            try {
+              hls!.recoverMediaError()
+              return
+            } catch {
+              // Recovery failed, fall through to auto-switch
+            }
+          }
+
           // Auto-switch to next source if available
           if (allItems.length > 1 && currentSourceIndex >= 0 && currentSourceIndex < allItems.length - 1) {
             const nextItem = allItems[currentSourceIndex + 1]
             if (nextItem) {
               console.log('[player] Auto-switching to source:', nextItem.sourceKey)
-              // Find the same episode in the next source
               const nextSources = parsePlayUrl(nextItem.vodPlayUrl)
               if (nextSources.length > 0 && nextSources[0].episodes.length > epIdx) {
-                setCurrentSourceIndex(currentSourceIndex + 1)
+                onSwitchSource(currentSourceIndex + 1)
                 const sk = encodeURIComponent(nextItem.sourceKey)
                 const vid = encodeURIComponent(nextItem.vodId)
                 navigate(`/play/${sk}/${vid}?src=0&ep=${epIdx}`, {
@@ -329,9 +404,14 @@ function VideoPlayer({
             }
           }
 
-          // No more sources to switch — show error
+          // No more sources — show error
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
+              // Try network retry before giving up
+              if (retryCountRef.current < MAX_RETRIES) {
+                retryLoad()
+                return
+              }
               setPlayerError(`网络错误：${data.details || '无法加载视频流'}`)
               break
             case Hls.ErrorTypes.MEDIA_ERROR:
@@ -341,16 +421,49 @@ function VideoPlayer({
               setPlayerError(`播放器错误：${data.details || '未知错误'}`)
               break
           }
-          // Stop trying to load — avoid infinite error loop
           hls?.stopLoad()
         }
-        // Non-fatal: hls.js handles internally, don't show anything
+      })
+
+      // Recover from buffer stall
+      hls.on(Hls.Events.FRAG_BUFFERED, () => {
+        if (destroyed) return
+        retryCountRef.current = 0
       })
     } else if (isM3u8) {
+      // Native HLS (iOS Safari) — set src and try to play
       video.src = proxyUrl
-      video.play().catch(() => setPlayerStatus('点击播放'))
+      video.addEventListener('loadedmetadata', () => tryPlay(), { once: true })
+      video.addEventListener('canplay', () => {
+        if (!destroyed) {
+          setPlayerStatus('')
+          retryCountRef.current = 0
+        }
+      }, { once: true })
+      video.addEventListener('error', () => {
+        if (destroyed) return
+        if (retryCountRef.current < MAX_RETRIES) {
+          retryLoad()
+        } else {
+          setPlayerError('视频加载失败，请尝试切换其他片源')
+        }
+      })
+      tryPlay()
     } else {
+      // Direct video URL
       video.src = proxyUrl
+      video.addEventListener('canplay', () => {
+        if (!destroyed) setPlayerStatus('')
+      }, { once: true })
+      video.addEventListener('error', () => {
+        if (destroyed) return
+        if (retryCountRef.current < MAX_RETRIES) {
+          retryLoad()
+        } else {
+          setPlayerError('视频加载失败，请尝试切换其他片源')
+        }
+      })
+      tryPlay()
     }
 
     const onTime = () => setCurrentTime(video.currentTime)
@@ -358,13 +471,20 @@ function VideoPlayer({
     const onPlay = () => { setPlaying(true); setPlayerStatus('') }
     const onPause = () => setPlaying(false)
     const onEnded = () => setPlaying(false)
-    // Removed auto-switch onEnded — was causing confusion with error recovery
+    const onWaiting = () => {
+      if (!destroyed && playing) setPlayerStatus('缓冲中...')
+    }
+    const onPlaying = () => {
+      if (!destroyed) setPlayerStatus('')
+    }
 
     video.addEventListener('timeupdate', onTime)
     video.addEventListener('loadedmetadata', onDuration)
     video.addEventListener('play', onPlay)
     video.addEventListener('pause', onPause)
     video.addEventListener('ended', onEnded)
+    video.addEventListener('waiting', onWaiting)
+    video.addEventListener('playing', onPlaying)
 
     return () => {
       destroyed = true
@@ -373,25 +493,49 @@ function VideoPlayer({
       video.removeEventListener('play', onPlay)
       video.removeEventListener('pause', onPause)
       video.removeEventListener('ended', onEnded)
-      // Proper HLS teardown: stopLoad first, then destroy
+      video.removeEventListener('waiting', onWaiting)
+      video.removeEventListener('playing', onPlaying)
+      // Proper HLS teardown
       if (hls) {
         hls.stopLoad()
         hls.destroy()
         hls = null
       }
       hlsRef.current = null
-      // Reset video element state
-      video.pause()
+      // Don't call video.load() — it causes black screen flash on mobile.
+      // Just detach src so the element can be GC'd naturally.
       video.removeAttribute('src')
-      video.load()
     }
   }, [url])
 
-  // Fullscreen listener
+  // Resume playback when app comes back to foreground
   useEffect(() => {
-    const handler = () => setIsFullscreen(!!document.fullscreenElement)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        const video = videoRef.current
+        if (video && !video.paused && video.readyState < 3) {
+          // Video buffer ran out while in background — nudge it
+          video.play().catch(() => {})
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [])
+
+  // Fullscreen listener — handle webkit prefix for iOS
+  useEffect(() => {
+    const handler = () => {
+      setIsFullscreen(
+        !!(document.fullscreenElement || (document as any).webkitFullscreenElement)
+      )
+    }
     document.addEventListener('fullscreenchange', handler)
-    return () => document.removeEventListener('fullscreenchange', handler)
+    document.addEventListener('webkitfullscreenchange', handler)
+    return () => {
+      document.removeEventListener('fullscreenchange', handler)
+      document.removeEventListener('webkitfullscreenchange', handler)
+    }
   }, [])
 
   // Long press & double tap detection
@@ -403,15 +547,12 @@ function VideoPlayer({
   const [showTapHint, setShowTapHint] = useState(false)
 
   const handleVideoInteractionStart = (e: React.TouchEvent | React.MouseEvent) => {
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
-    const video = videoRef.current
-    if (!video) return
-
     // Start long press timer
     longPressTimer.current = setTimeout(() => {
       setIsLongPress(true)
       setShowSpeedHint(true)
-      video.playbackRate = 2
+      const video = videoRef.current
+      if (video) video.playbackRate = 2
       setTimeout(() => setShowSpeedHint(false), 1000)
     }, 500)
   }
@@ -423,7 +564,6 @@ function VideoPlayer({
     clearTimeout(longPressTimer.current)
 
     if (isLongPress) {
-      // Was long press — restore normal speed
       video.playbackRate = 1
       setIsLongPress(false)
       return
@@ -501,10 +641,13 @@ function VideoPlayer({
   const toggleFullscreen = () => {
     const el = containerRef.current
     if (!el) return
-    if (document.fullscreenElement) {
-      document.exitFullscreen()
+    const doc = document as any
+    if (document.fullscreenElement || doc.webkitFullscreenElement) {
+      if (doc.exitFullscreen) doc.exitFullscreen()
+      else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen()
     } else {
-      el.requestFullscreen()
+      if (el.requestFullscreen) el.requestFullscreen()
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen()
     }
   }
 
@@ -563,7 +706,6 @@ function VideoPlayer({
       setDragProgress(pct)
       dragProgressRef.current = pct
       lastClientXRef.current = e.clientX
-      // Update video position while dragging
       const video = videoRef.current
       if (video) video.currentTime = pct * duration
     }
@@ -577,14 +719,12 @@ function VideoPlayer({
       setDragProgress(pct)
       dragProgressRef.current = pct
       lastClientXRef.current = touch.clientX
-      // Update video position while dragging
       const video = videoRef.current
       if (video) video.currentTime = pct * duration
     }
 
     const handleEnd = () => {
       setIsDragging(false)
-      // Final seek to the last position using ref
       const video = videoRef.current
       if (video && duration) {
         video.currentTime = dragProgressRef.current * duration
@@ -663,7 +803,6 @@ function VideoPlayer({
     return () => {
       clearInterval(interval)
       window.removeEventListener('beforeunload', handleBeforeUnload)
-      // Save final progress on cleanup
       if (video.duration > 0) {
         onProgress(video.currentTime / video.duration)
       }
@@ -708,8 +847,10 @@ function VideoPlayer({
             <button
               onClick={() => {
                 setPlayerError(null)
+                retryCountRef.current = 0
                 if (videoRef.current) {
                   videoRef.current.src = proxy(url)
+                  videoRef.current.load()
                   videoRef.current.play().catch(() => {})
                 }
               }}
@@ -731,7 +872,12 @@ function VideoPlayer({
         onTouchStart={handleVideoInteractionStart}
         onTouchEnd={handleVideoInteractionEnd}
         playsInline
+        webkit-playsinline=""
+        x5-playsinline=""
+        x5-video-player-type="h5"
+        x5-video-player-fullscreen="true"
         muted
+        preload="auto"
       />
 
       {/* Status overlay */}
@@ -761,8 +907,10 @@ function VideoPlayer({
       {isFullscreen && (
         <button
           onClick={() => {
-            if (document.fullscreenElement) {
-              document.exitFullscreen()
+            const doc = document as any
+            if (document.fullscreenElement || doc.webkitFullscreenElement) {
+              if (doc.exitFullscreen) doc.exitFullscreen()
+              else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen()
             } else {
               const savedQuery = sessionStorage.getItem('sv_search_query')
               navigate(savedQuery ? `/search?q=${encodeURIComponent(savedQuery)}` : '/search', { replace: true })
@@ -909,7 +1057,6 @@ function VideoPlayer({
                     rounded-btn p-1 shadow-xl z-30 min-w-[80px]">
                     <button
                       onClick={() => {
-                        const v = videoRef.current
                         const h = hlsRef.current
                         if (h) h.currentLevel = -1
                         setCurrentLevel(-1)
@@ -1054,9 +1201,7 @@ function VideoPlayer({
                       <button
                         key={ei}
                         onClick={() => {
-                          const key = decodeURIComponent(sourceKey ?? '')
-                          const vid = decodeURIComponent(vodId ?? '')
-                          navigate(`/play/${encodeURIComponent(key)}/${encodeURIComponent(vid)}?src=${si}&ep=${ei}`, { replace: true })
+                          navigate(`/play/${encodeURIComponent(sourceKey)}/${encodeURIComponent(vodId)}?src=${si}&ep=${ei}`, { replace: true })
                           setShowEpisodes(false)
                         }}
                         className={`px-2 py-2 rounded-btn text-[11px] font-medium truncate transition-all duration-150
