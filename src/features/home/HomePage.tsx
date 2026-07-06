@@ -226,20 +226,9 @@ export function HomePage() {
       <WelcomePopup />
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-lg font-bold text-ink">豆瓣热门推荐</h2>
-          <p className="text-[12px] text-muted mt-1">数据来源：豆瓣电影</p>
-        </div>
-        <a
-          href="https://movie.douban.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 text-[12px] text-muted hover:text-accent transition-colors"
-        >
-          <ExternalLink size={12} />
-          豆瓣
-        </a>
+      <div className="mb-6">
+        <h2 className="text-lg font-bold text-ink">豆瓣热门推荐</h2>
+        <p className="text-[12px] text-muted mt-1">数据来源：豆瓣电影</p>
       </div>
 
       {/* Sections */}
