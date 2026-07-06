@@ -23,6 +23,7 @@ const DEFAULT_SOURCES: LocalVodSource[] = [
   { key: 'p2100', name: 'P2100资源', apiUrl: 'https://www.p2100.net/api.php/provide/vod', detailUrl: 'https://www.p2100.net/api.php/provide/vod', enabled: true },
   { key: 'ffzy', name: '非凡资源', apiUrl: 'https://cj.ffzyapi.com/api.php/provide/vod', detailUrl: 'https://cj.ffzyapi.com/api.php/provide/vod', enabled: true },
   { key: 'hongniu', name: '红牛资源', apiUrl: 'https://www.hongniuzy2.com/api.php/provide/vod', detailUrl: 'https://www.hongniuzy2.com/api.php/provide/vod', enabled: true },
+  { key: 'ffzy5', name: '非凡资源', apiUrl: 'http://ffzy5.tv/api.php/provide/vod', detailUrl: 'http://ffzy5.tv/api.php/provide/vod', enabled: true },
   { key: 'lzcaiji', name: '量子采集', apiUrl: 'https://cj.lzcaiji.com/api.php/provide/vod', detailUrl: 'https://cj.lzcaiji.com/api.php/provide/vod', enabled: true },
   { key: 'sdzy', name: '闪电资源', apiUrl: 'https://sdzyapi.com/api.php/provide/vod', detailUrl: 'https://sdzyapi.com/api.php/provide/vod', enabled: true },
   { key: '360zy', name: '360资源', apiUrl: 'https://360zy.com/api.php/provide/vod', detailUrl: 'https://360zy.com/api.php/provide/vod', enabled: true },
