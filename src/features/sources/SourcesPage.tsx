@@ -84,16 +84,19 @@ export function SourcesPage() {
   const handleAdd = async () => {
     setImporting(true); setImportResult(null)
     try {
+      // Auto-generate key if not provided
+      const key = addKey.trim() || `custom_${Date.now()}`
+      const name = addName.trim() || '自定义片源'
       await addSource({
-        key: addKey.trim(),
-        name: addName.trim() || addKey.trim(),
+        key,
+        name,
         apiUrl: addApi.trim(),
         detailUrl: addApi.trim(),
         enabled: true,
       })
       setAddKey(''); setAddName(''); setAddApi('')
       setImportMode('url')
-      setImportResult('已添加')
+      setImportResult(`已添加: ${name}`)
     } catch (e) {
       setImportResult(`添加失败: ${(e as Error).message}`)
     } finally { setImporting(false) }
@@ -183,14 +186,14 @@ export function SourcesPage() {
         ) : (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
-              <input type="text" value={addKey} onChange={(e) => setAddKey(e.target.value)}
-                className="glass-input h-10 px-4 text-[13px] placeholder:text-muted/60" placeholder="标识 (key)" />
               <input type="text" value={addName} onChange={(e) => setAddName(e.target.value)}
-                className="glass-input h-10 px-4 text-[13px] placeholder:text-muted/60" placeholder="名称 (可选)" />
+                className="glass-input h-10 px-4 text-[13px] placeholder:text-muted/60" placeholder="片源名称" />
+              <input type="text" value={addKey} onChange={(e) => setAddKey(e.target.value)}
+                className="glass-input h-10 px-4 text-[13px] placeholder:text-muted/60" placeholder="标识 (自动生成)" />
             </div>
             <input type="text" value={addApi} onChange={(e) => setAddApi(e.target.value)}
               className="w-full glass-input h-10 px-4 text-[13px] placeholder:text-muted/60" placeholder="API 地址 (https://...)" />
-            <button onClick={handleAdd} disabled={importing || !addKey.trim() || !addApi.trim()}
+            <button onClick={handleAdd} disabled={importing || !addApi.trim() || (!addKey.trim() && !addName.trim())}
               className="flex items-center gap-1.5 px-4 h-10 rounded-btn bg-accent text-white text-[13px] font-semibold
               hover:bg-accent-hover transition-all duration-200 disabled:opacity-50">
               <Plus size={14} /> 添加

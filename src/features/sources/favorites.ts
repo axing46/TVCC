@@ -2,12 +2,36 @@ import type { LocalVodSource } from '@/core/models'
 import { loadAllSources } from './storage'
 
 const FAVORITE_SOURCES_KEY = 'tvcc_favorite_sources'
+const FAVORITE_VERSION_KEY = 'tvcc_favorite_version'
+const CURRENT_FAVORITE_VERSION = 2 // 强制同步
 
 // Default favorite sources
 const DEFAULT_FAVORITES = ['iqiyizy', 'ikunzy', 'p2100', 'ruyi', 'ffzy5']
 
 export function getFavoriteSourceKeys(): string[] {
   try {
+    // Check version for forced sync
+    const savedVersion = localStorage.getItem(FAVORITE_VERSION_KEY)
+    if (savedVersion !== String(CURRENT_FAVORITE_VERSION)) {
+      // Version mismatch — update favorites
+      const raw = localStorage.getItem(FAVORITE_SOURCES_KEY)
+      let existingFavorites: string[] = []
+
+      if (raw) {
+        try {
+          existingFavorites = JSON.parse(raw) as string[]
+        } catch {
+          existingFavorites = []
+        }
+      }
+
+      // Merge: add any new default favorites
+      const merged = [...new Set([...DEFAULT_FAVORITES, ...existingFavorites])]
+      localStorage.setItem(FAVORITE_SOURCES_KEY, JSON.stringify(merged))
+      localStorage.setItem(FAVORITE_VERSION_KEY, String(CURRENT_FAVORITE_VERSION))
+      return merged
+    }
+
     const raw = localStorage.getItem(FAVORITE_SOURCES_KEY)
     if (!raw) {
       // First time — save defaults
