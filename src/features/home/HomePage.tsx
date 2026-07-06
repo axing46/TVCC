@@ -112,15 +112,36 @@ const INITIAL_SHOW = 12
 function DoubanMovieCard({ movie }: { movie: DoubanMovie }) {
   const navigate = useNavigate()
   const [imgError, setImgError] = useState(false)
+  const [searching, setSearching] = useState(false)
 
-  const handleClick = () => {
-    navigate(`/search?q=${encodeURIComponent(movie.title)}`)
+  const handleClick = async () => {
+    setSearching(true)
+    try {
+      // Search for the movie in our sources
+      const { searchAllSources, SearchCache } = await import('@/features/search/api')
+      const cache = new SearchCache()
+      const result = await searchAllSources(movie.title, cache)
+
+      if (result.items.length > 0) {
+        // Find best match
+        const bestMatch = result.items[0]
+        navigate(`/detail/${encodeURIComponent(bestMatch.sourceKey)}/${encodeURIComponent(bestMatch.vodId)}`)
+      } else {
+        // Fallback to search page
+        navigate(`/search?q=${encodeURIComponent(movie.title)}`)
+      }
+    } catch {
+      navigate(`/search?q=${encodeURIComponent(movie.title)}`)
+    } finally {
+      setSearching(false)
+    }
   }
 
   return (
     <button
       onClick={handleClick}
-      className="glass-card overflow-hidden text-left w-full cursor-pointer hover:-translate-y-0.5 transition-transform duration-200 group"
+      disabled={searching}
+      className="glass-card overflow-hidden text-left w-full cursor-pointer hover:-translate-y-0.5 transition-transform duration-200 group disabled:opacity-60"
     >
       <div className="flex gap-3 p-3">
         {/* Cover image */}
@@ -156,9 +177,14 @@ function DoubanMovieCard({ movie }: { movie: DoubanMovie }) {
               ))}
             </div>
           )}
-          <div className="flex items-center gap-0.5 text-champagne mt-auto pt-1">
-            <Star size={12} fill="#f4d28a" strokeWidth={0} />
-            <span className="text-[12px] font-bold">{movie.rate}</span>
+          <div className="flex items-center justify-between mt-auto pt-1">
+            <div className="flex items-center gap-0.5 text-champagne">
+              <Star size={12} fill="#f4d28a" strokeWidth={0} />
+              <span className="text-[12px] font-bold">{movie.rate}</span>
+            </div>
+            {searching && (
+              <span className="text-[10px] text-accent animate-pulse">搜索中...</span>
+            )}
           </div>
         </div>
       </div>
