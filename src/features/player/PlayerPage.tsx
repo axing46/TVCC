@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Play, Pause, Maximize, Minimize, SkipBack, SkipForward, Volume2, VolumeX, AlertTriangle, ExternalLink, Gauge, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Play, Pause, Maximize, Minimize, SkipBack, SkipForward, Volume2, VolumeX, AlertTriangle, ExternalLink, Gauge, ChevronLeft, ChevronRight, List, X } from 'lucide-react'
 import Hls from 'hls.js'
 import { useDetail } from '@/features/detail/hooks'
 import { parsePlayUrl } from '@/features/detail/api'
@@ -200,6 +200,7 @@ function VideoPlayer({
   const [duration, setDuration] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
   const [showControls, setShowControls] = useState(true)
+  const [showEpisodes, setShowEpisodes] = useState(false)
   const [playerError, setPlayerError] = useState<string | null>(null)
   const [playerStatus, setPlayerStatus] = useState('正在连接...')
   const [showLoadingTip, setShowLoadingTip] = useState(false)
@@ -1010,10 +1011,68 @@ function VideoPlayer({
               </span>
             </div>
 
+            {/* Episodes button */}
+            {sources.length > 0 && (
+              <button onClick={() => setShowEpisodes(!showEpisodes)}
+                className={`p-1.5 transition-all duration-180 ${showEpisodes ? 'text-accent' : 'text-white/80 hover:text-white'}`}>
+                <List size={16} strokeWidth={1.5} />
+              </button>
+            )}
+
             <button onClick={toggleFullscreen}
               className="p-1.5 text-white/80 hover:text-white transition-all duration-180">
               {isFullscreen ? <Minimize size={16} strokeWidth={1.5} /> : <Maximize size={16} strokeWidth={1.5} />}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Episodes panel - slides in from right */}
+      {showEpisodes && (
+        <div className="absolute top-0 right-0 bottom-0 w-72 sm:w-80 z-30 bg-black/95 backdrop-blur-md
+          border-l border-white/10 flex flex-col animate-slide-in">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+            <h3 className="text-[14px] font-semibold text-white">选集</h3>
+            <button onClick={() => setShowEpisodes(false)}
+              className="p-1 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-all">
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Episode list */}
+          <div className="flex-1 overflow-y-auto p-3">
+            {sources.map((source, si) => (
+              <div key={si} className="mb-4">
+                {sources.length > 1 && (
+                  <h4 className="text-[12px] text-white/50 font-medium mb-2">{source.name}</h4>
+                )}
+                <div className="grid grid-cols-4 gap-1.5">
+                  {source.episodes.map((ep, ei) => {
+                    const isActive = si === srcIdx && ei === epIdx
+                    return (
+                      <button
+                        key={ei}
+                        onClick={() => {
+                          const key = decodeURIComponent(sourceKey ?? '')
+                          const vid = decodeURIComponent(vodId ?? '')
+                          navigate(`/play/${encodeURIComponent(key)}/${encodeURIComponent(vid)}?src=${si}&ep=${ei}`, { replace: true })
+                          setShowEpisodes(false)
+                        }}
+                        className={`px-2 py-2 rounded-btn text-[11px] font-medium truncate transition-all duration-150
+                          ${isActive
+                            ? 'bg-accent/20 text-accent border border-accent/40'
+                            : 'bg-white/[0.06] text-white/70 border border-white/[0.08] hover:bg-white/[0.12] hover:text-white'
+                          }`}
+                        title={ep.name}
+                      >
+                        {ep.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
