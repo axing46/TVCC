@@ -1,17 +1,22 @@
+import { useState, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { ArrowLeft, Star, Heart, Clock, AlertTriangle, Layers } from 'lucide-react'
+import { ArrowLeft, Star, Heart, Clock, AlertTriangle, Layers, ChevronDown, ChevronUp } from 'lucide-react'
 import { useDetail } from './hooks'
 import { parsePlayUrl } from './api'
 import { useFavorites } from '@/features/favorites/hooks'
+import { getFavoriteSourceKeys } from '@/features/sources/favorites'
 import { Loading, ErrorState } from '@/components/ui/Status'
 import { proxyImageUrl } from '@/utils/proxy'
 import { getSourceDisplayName } from '@/utils/source-names'
 import type { VodItem } from '@/core/models'
 
+const INITIAL_SOURCES_SHOW = 4
+
 export function DetailPage() {
   const { sourceKey, vodId } = useParams<{ sourceKey: string; vodId: string }>()
   const navigate = useNavigate()
   const location = useLocation()
+  const [showAllSources, setShowAllSources] = useState(false)
 
   // Try to get data from navigation state first (from search results)
   const state = location.state as { item?: VodItem; allItems?: VodItem[] } | null
@@ -38,8 +43,25 @@ export function DetailPage() {
   const data = skipFetch ? stateItem! : fetchedData
   const { isFavorited, toggleFavorite } = useFavorites()
 
-  // Collect all available sources for multi-source playback
-  const allSources = allItems.length > 1 ? allItems : (data ? [data] : [])
+  // Collect all available sources for multi-source playback, sort favorites first
+  const allSources = useMemo(() => {
+    const sources = allItems.length > 1 ? allItems : (data ? [data] : [])
+    if (sources.length <= 1) return sources
+
+    const favoriteKeys = getFavoriteSourceKeys()
+    const currentKey = data?.sourceKey
+
+    // Sort: current source first, then favorites, then others
+    return [...sources].sort((a, b) => {
+      // Current source always first
+      if (a.sourceKey === currentKey) return -1
+      if (b.sourceKey === currentKey) return 1
+
+      const aFav = favoriteKeys.includes(a.sourceKey) ? 0 : 1
+      const bFav = favoriteKeys.includes(b.sourceKey) ? 0 : 1
+      return aFav - bFav
+    })
+  }, [allItems, data])
 
   if (isLoading) return <Loading />
   if (isError) return (
@@ -185,26 +207,46 @@ export function DetailPage() {
             <h3 className="text-[14px] font-semibold text-ink">可用片源 ({allSources.length}个)</h3>
           </div>
           <div className="flex flex-wrap gap-2">
-            {allSources.map((src, idx) => (
-              <button
-                key={idx}
-                onClick={() => {
-                  // Navigate to this source's detail
-                  navigate(`/detail/${encodeURIComponent(src.sourceKey)}/${encodeURIComponent(src.vodId)}`, {
-                    state: { item: src, allItems: allSources },
-                    replace: true
-                  })
-                }}
-                className={`px-3 py-1.5 rounded-btn text-[11px] font-medium transition-all duration-150
-                  ${src.sourceKey === data.sourceKey
-                    ? 'bg-accent/15 text-accent border border-accent/30'
-                    : 'bg-white/[0.04] border border-white/[0.06] text-muted hover:text-ink hover:border-accent/20'
-                  }`}
-              >
-                {getSourceDisplayName(src.sourceKey)}
-              </button>
-            ))}
+            {/* Show initial sources or all */}
+            {(showAllSources ? allSources : allSources.slice(0, INITIAL_SOURCES_SHOW)).map((src, idx) => {
+              const favoriteKeys = getFavoriteSourceKeys()
+              const isFavorite = favoriteKeys.includes(src.sourceKey)
+              return (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    navigate(`/detail/${encodeURIComponent(src.sourceKey)}/${encodeURIComponent(src.vodId)}`, {
+                      state: { item: src, allItems: allSources },
+                      replace: true
+                    })
+                  }}
+                  className={`px-3 py-1.5 rounded-btn text-[11px] font-medium transition-all duration-150
+                    ${src.sourceKey === data.sourceKey
+                      ? 'bg-accent/15 text-accent border border-accent/30'
+                      : isFavorite
+                        ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:border-amber-500/40'
+                        : 'bg-white/[0.04] border border-white/[0.06] text-muted hover:text-ink hover:border-accent/20'
+                    }`}
+                >
+                  {isFavorite && '⭐ '}
+                  {getSourceDisplayName(src.sourceKey)}
+                </button>
+              )
+            })}
           </div>
+          {/* Show expand/collapse button if more sources */}
+          {allSources.length > INITIAL_SOURCES_SHOW && (
+            <button
+              onClick={() => setShowAllSources(!showAllSources)}
+              className="flex items-center gap-1 mt-3 text-[12px] text-muted hover:text-accent transition-colors"
+            >
+              {showAllSources ? (
+                <><ChevronUp size={14} /> 收起片源</>
+              ) : (
+                <><ChevronDown size={14} /> 展开更多片源 ({allSources.length - INITIAL_SOURCES_SHOW}个)</>
+              )}
+            </button>
+          )}
         </div>
       )}
 
